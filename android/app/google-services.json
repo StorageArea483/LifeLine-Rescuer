@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "494066243537",
+    "project_id": "life-line-rescuer-b1f1c",
+    "storage_bucket": "life-line-rescuer-b1f1c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494066243537:android:ffdb36137d6d3cb1a4b2f0",
+        "android_client_info": {
+          "package_name": "com.example.life_line_rescuer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDs-CoAc_fqrB-3BMl4N7pYSavyNV72zUQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
