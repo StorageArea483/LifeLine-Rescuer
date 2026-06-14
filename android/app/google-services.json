@@ -12,7 +12,20 @@
           "package_name": "com.example.life_line_rescuer"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "494066243537-jlfdjh72gf1b7jtuqc0r55bmcaitfk0p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.life_line_rescuer",
+            "certificate_hash": "8fd1d748f282978cdf08f014e288ef51b51fb741"
+          }
+        },
+        {
+          "client_id": "494066243537-svh0nrrt1iqh0tmp5fp2fa320mf55g7j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDs-CoAc_fqrB-3BMl4N7pYSavyNV72zUQ"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "494066243537-svh0nrrt1iqh0tmp5fp2fa320mf55g7j.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "494066243537-2udl62dnmeq9leaubcoj14ehhtlbrf8t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.lifeLineRescuer"
+              }
+            }
+          ]
         }
       }
     }

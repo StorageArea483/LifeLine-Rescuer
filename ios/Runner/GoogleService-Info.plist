@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>494066243537-2udl62dnmeq9leaubcoj14ehhtlbrf8t.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.494066243537-2udl62dnmeq9leaubcoj14ehhtlbrf8t</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>494066243537-jlfdjh72gf1b7jtuqc0r55bmcaitfk0p.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyA3cUXkIjLsHhTv2l3OKhNzE3EZtejqxLg</string>
+	<key>GCM_SENDER_ID</key>
+	<string>494066243537</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.lifeLineRescuer</string>
+	<key>PROJECT_ID</key>
+	<string>life-line-rescuer-b1f1c</string>
+	<key>STORAGE_BUCKET</key>
+	<string>life-line-rescuer-b1f1c.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:494066243537:ios:8f122b25432725a6a4b2f0</string>
+</dict>
+</plist>

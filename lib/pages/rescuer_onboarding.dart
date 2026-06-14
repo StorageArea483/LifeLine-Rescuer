@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_line_rescuer/services/auth_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/providers/rescuer_onboarding_provider.dart';
+import 'package:life_line_rescuer/widgets/global/page_message.dart';
+import 'package:life_line_rescuer/widgets/google_authentication.dart';
 
 class RescuerOnboarding extends ConsumerStatefulWidget {
   const RescuerOnboarding({super.key});
@@ -14,7 +18,6 @@ class RescuerOnboarding extends ConsumerStatefulWidget {
 
 class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   FirebaseFirestore? _ngoFirestore;
-
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -69,10 +72,10 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     } catch (e) {
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setLoading(false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('An unexpected error occurred please retry'),
-          ),
+        pageMessage(
+          'An unexpected error occurred please retry',
+          context,
+          AppColors.error,
         );
       }
     }
@@ -136,6 +139,142 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     return null;
   }
 
+  Future<void> _handleSubmit(String selectedNgoId) async {
+    if (!mounted) return;
+    ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(true);
+
+    try {
+      User? currentUser = GoogleSignInService.getCurrentUser();
+
+      if (currentUser == null) {
+        if (mounted) {
+          ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(false);
+          pageMessage('Failed to authenticate user.', context, AppColors.error);
+        }
+        return;
+      }
+
+      final userUid = currentUser.uid;
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      final phone = _phoneController.text.trim();
+
+      // Get the selected NGO details
+      if (!mounted) return;
+      final approvedNgos = ref.read(
+        rescueOnboardingProvider.select((v) => v.approvedNgos),
+      );
+      final selectedNgo = approvedNgos.firstWhere(
+        (ngo) => ngo['docId'] == selectedNgoId,
+        orElse: () => {},
+      );
+
+      final ngoName = selectedNgo['ngoName'] ?? 'Unknown NGO';
+      final branchName = selectedNgo['branchName'] ?? 'N/A';
+
+      // Store user data in life-line-rescuer database (users collection)
+      final rescuerFirestore = FirebaseFirestore.instance;
+      await rescuerFirestore.collection('users').doc(userUid).set({
+        'id': userUid,
+        'firstName': firstName,
+        'lastName': lastName,
+        'phone': phone,
+        'ngoName': ngoName,
+        'branchName': branchName,
+        'status': 'pending',
+      }, SetOptions(merge: true));
+
+      // Store request in life-line-ngo database under selected NGO's requests subcollection
+      if (_ngoFirestore != null) {
+        await _ngoFirestore!
+            .collection('ngo-info-database')
+            .doc(selectedNgoId)
+            .collection('rescuer-requests')
+            .doc(userUid)
+            .set({
+              'id': userUid,
+              'firstName': firstName,
+              'lastName': lastName,
+              'phone': phone,
+              'ngoName': ngoName,
+              'branchName': branchName,
+              'status': 'pending',
+            });
+      }
+
+      if (mounted) {
+        ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(false);
+
+        // Show success dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: AppColors.softBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              contentPadding: const EdgeInsets.all(AppSpacing.xxl),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Check Icon
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  // Success Message
+                  Text(
+                    'Your request was sent successfully, please wait while NGO accepts your request.',
+                    textAlign: TextAlign.center,
+                    style: AppText.fieldLabel.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  // OK Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: AppButtons.submit,
+                      child: const Text('OK', style: AppText.submitButton),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(false);
+        pageMessage(
+          'Failed to send request. Please try again.',
+          context,
+          AppColors.error,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,7 +282,13 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         children: [
           Container(
             decoration: AppContainers.pageContainer,
-            child: SafeArea(child: _buildBody()),
+            child: SafeArea(
+              child: Consumer(
+                builder: (context, ref, child) {
+                  return _buildBody(ref);
+                },
+              ),
+            ),
           ),
           _buildLoadingOverlay(),
         ],
@@ -151,7 +296,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(WidgetRef ref) {
     if (!mounted) return const SizedBox.shrink();
     final isLoading = ref.watch(
       rescueOnboardingProvider.select((v) => v.isLoading),
@@ -167,12 +312,186 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildLogo(),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.sm),
           _buildTitle(),
-          const SizedBox(height: AppSpacing.xxxl),
+          const SizedBox(height: AppSpacing.xxl),
           _buildForm(),
+          const SizedBox(height: AppSpacing.lg),
+          // Terms Footer
+          RichText(
+            textAlign: TextAlign.center,
+
+            text: TextSpan(
+              style: AppText.footer.copyWith(color: AppColors.textLight),
+
+              children: [
+                const TextSpan(text: 'By continuing, you agree to our '),
+
+                WidgetSpan(
+                  child: GestureDetector(
+                    onTap:
+                        () => showPolicyDialog(
+                          context,
+
+                          'Terms of Service',
+
+                          termsOfService,
+                        ),
+
+                    child: Text(
+                      'Terms of Service',
+
+                      style: AppText.footerLink.copyWith(
+                        color: AppColors.primaryMaroon,
+
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const TextSpan(text: ' and '),
+
+                WidgetSpan(
+                  child: GestureDetector(
+                    onTap:
+                        () => showPolicyDialog(
+                          context,
+
+                          'Privacy Policy',
+
+                          privacyPolicy,
+                        ),
+
+                    child: Text(
+                      'Privacy Policy',
+
+                      style: AppText.footerLink.copyWith(
+                        color: AppColors.primaryMaroon,
+
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  void showPolicyDialog(BuildContext context, String title, String body) {
+    showDialog(
+      context: context,
+
+      builder:
+          (ctx) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+
+            child: Container(
+              padding: const EdgeInsets.all(24),
+
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+
+                borderRadius: BorderRadius.circular(20),
+              ),
+
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: AppText.formTitle.copyWith(
+                        color: AppColors.primaryMaroon,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      body,
+                      style: AppText.formDescription.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+
+                                side: const BorderSide(
+                                  color: AppColors.primaryMaroon,
+
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+
+                            onPressed: () {
+                              if (ctx.mounted) {
+                                Navigator.of(ctx).pop();
+                              }
+                            },
+
+                            child: Text(
+                              'Close',
+
+                              style: AppText.button.copyWith(
+                                color: AppColors.primaryMaroon,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: ElevatedButton(
+                            style: AppButtons.primary,
+
+                            onPressed: () {
+                              if (ctx.mounted) {
+                                Navigator.of(ctx).pop();
+                              }
+
+                              if (context.mounted) {
+                                pageMessage(
+                                  'You agreed to our terms and conditions.',
+                                  context,
+                                  AppColors.success,
+                                );
+                              }
+                            },
+
+                            child: Text(
+                              'I Agree',
+
+                              style: AppText.button.copyWith(
+                                color: AppColors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
     );
   }
 
@@ -291,24 +610,48 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
           final selectedNgoId = ref.watch(
             rescueOnboardingProvider.select((v) => v.selectedNgo),
           );
+          if (!mounted) return const SizedBox.shrink();
+          final isSubmitted = ref.watch(
+            rescueOnboardingProvider.select((v) => v.isSubmitting),
+          );
+          if (!mounted) return const SizedBox.shrink();
+          final isGoogleAuthenticated = ref.watch(
+            rescueOnboardingProvider.select((v) => v.googleAuthenticated),
+          );
+
+          if (isGoogleAuthenticated == false) {
+            return GoogleAuthentication(ref);
+          }
 
           return ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                if (selectedNgoId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select an NGO')),
-                  );
-                  return;
-                }
-                // Form is valid, proceed with onboarding
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Onboarding successful!')),
-                );
-              }
-            },
+            onPressed:
+                isSubmitted
+                    ? null
+                    : () {
+                      if (_formKey.currentState!.validate()) {
+                        if (selectedNgoId == null) {
+                          pageMessage(
+                            'Please select an NGO.',
+                            context,
+                            AppColors.error,
+                          );
+                          return;
+                        }
+                        _handleSubmit(selectedNgoId);
+                      }
+                    },
             style: AppButtons.submit,
-            child: const Text('Send Request', style: AppText.submitButton),
+            child:
+                isSubmitted
+                    ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                    : const Text('Send Request', style: AppText.submitButton),
           );
         },
       ),
