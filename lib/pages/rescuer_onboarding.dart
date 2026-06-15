@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:life_line_rescuer/services/auth_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/providers/rescuer_onboarding_provider.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
@@ -64,7 +63,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
       // Fetch approved NGOs once
-      await _fetchApprovedNgos();
+      await Future.wait([_fetchApprovedNgos(), _checkPendingRequest()]);
 
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setLoading(false);
@@ -115,6 +114,39 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     }
   }
 
+  Future<void> _checkPendingRequest() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) return;
+
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      if (!doc.exists) return;
+
+      final data = doc.data();
+
+      if (data == null) return;
+
+      if (data['status'] == 'pending' && mounted) {
+        _showPendingDialog(false);
+      }
+      if (data['status'] == 'rejected' && mounted) {
+        _showPendingDialog(true);
+      }
+    } catch (_) {
+      pageMessage(
+        'An unexpected error occurred, please retry',
+        context,
+        AppColors.error,
+      );
+    }
+  }
+
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'This field is required';
@@ -139,12 +171,61 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     return null;
   }
 
+  void _showPendingDialog(bool rejected) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: AppColors.softBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            contentPadding: const EdgeInsets.all(AppSpacing.xxl),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryMaroon.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    rejected ? Icons.close : Icons.hourglass_top,
+                    color: rejected ? Colors.red : AppColors.primaryMaroon,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  rejected
+                      ? 'Your request has been rejected.'
+                      : 'Please wait while NGO accepts your request.',
+                  textAlign: TextAlign.center,
+                  style: AppText.fieldLabel.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.darkCharcoal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _handleSubmit(String selectedNgoId) async {
     if (!mounted) return;
     ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(true);
 
     try {
-      User? currentUser = GoogleSignInService.getCurrentUser();
+      User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser == null) {
         if (mounted) {
@@ -155,6 +236,28 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       }
 
       final userUid = currentUser.uid;
+      final existingDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userUid)
+              .get();
+
+      if (existingDoc.exists) {
+        final status = existingDoc.data()?['status'];
+
+        if (status == 'pending') {
+          if (mounted) {
+            _showPendingDialog(false);
+          }
+          return;
+        }
+        if (status == 'rejected') {
+          if (mounted) {
+            _showPendingDialog(true);
+          }
+          return;
+        }
+      }
       final firstName = _firstNameController.text.trim();
       final lastName = _lastNameController.text.trim();
       final phone = _phoneController.text.trim();
@@ -204,64 +307,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
 
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(false);
-
-        // Show success dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: AppColors.softBackground,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              contentPadding: const EdgeInsets.all(AppSpacing.xxl),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Check Icon
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: AppColors.success,
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  // Success Message
-                  Text(
-                    'Your request was sent successfully, please wait while NGO accepts your request.',
-                    textAlign: TextAlign.center,
-                    style: AppText.fieldLabel.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  // OK Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: AppButtons.submit,
-                      child: const Text('OK', style: AppText.submitButton),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
+        _showPendingDialog(false);
       }
     } catch (e) {
       if (mounted) {

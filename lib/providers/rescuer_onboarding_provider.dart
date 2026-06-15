@@ -76,6 +76,6 @@ class RescuePageState {
 }
 
 final rescueOnboardingProvider =
-    StateNotifierProvider<RescuePageNotifier, RescuePageState>(
+    StateNotifierProvider.autoDispose<RescuePageNotifier, RescuePageState>(
       (ref) => RescuePageNotifier(),
     );

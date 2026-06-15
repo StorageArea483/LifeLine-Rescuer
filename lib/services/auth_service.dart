@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -42,16 +41,6 @@ class GoogleSignInService {
       );
       final UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
-      final User? user = userCredential.user;
-      if (user != null) {
-        final userDoc = FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid);
-        final docSnapshot = await userDoc.get();
-        if (!docSnapshot.exists) {
-          await userDoc.set({'uid': user.uid, 'photoURL': user.photoURL ?? ''});
-        }
-      }
       return userCredential;
     } catch (e) {
       rethrow;
@@ -66,10 +55,5 @@ class GoogleSignInService {
     } catch (e) {
       rethrow;
     }
-  }
-
-  // Get current user
-  static User? getCurrentUser() {
-    return _auth.currentUser;
   }
 }

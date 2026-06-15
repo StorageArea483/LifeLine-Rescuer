@@ -49,11 +49,12 @@ class GoogleAuthentication extends StatelessWidget {
         ref
             .read(rescueOnboardingProvider.notifier)
             .setGoogleAuthenticated(true);
+        ref.read(googleAuthProvider.notifier).state = false;
       }
     } catch (e) {
       if (context.mounted) {
         ref.read(googleAuthProvider.notifier).state = false;
-        pageMessage('Request not completed', context, AppColors.error);
+        pageMessage('Request not completed $e', context, AppColors.error);
       }
     }
   }
