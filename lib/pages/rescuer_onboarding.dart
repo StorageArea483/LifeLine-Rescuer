@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_line_rescuer/services/auth_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/providers/rescuer_onboarding_provider.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
@@ -54,15 +55,19 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     }
 
     try {
-      // Initialize life-line-ngo Firebase
-      final ngoApp = await Firebase.initializeApp(
-        name: 'life-line-ngo',
-        options: _ngoFirebaseOptions,
-      );
+      FirebaseApp ngoApp;
+
+      try {
+        ngoApp = Firebase.app('life-line-ngo');
+      } catch (_) {
+        ngoApp = await Firebase.initializeApp(
+          name: 'life-line-ngo',
+          options: _ngoFirebaseOptions,
+        );
+      }
 
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
-      // Fetch approved NGOs once
       await Future.wait([_fetchApprovedNgos(), _checkPendingRequest()]);
 
       if (mounted) {
@@ -71,6 +76,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     } catch (e) {
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setLoading(false);
+
         pageMessage(
           'An unexpected error occurred please retry',
           context,
@@ -201,16 +207,34 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                Text(
-                  rejected
-                      ? 'Your request has been rejected.'
-                      : 'Please wait while NGO accepts your request.',
-                  textAlign: TextAlign.center,
-                  style: AppText.fieldLabel.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.darkCharcoal,
-                  ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      rejected
+                          ? 'Your request has been rejected.'
+                          : 'Please wait while NGO accepts your request.',
+                      textAlign: TextAlign.center,
+                      style: AppText.fieldLabel.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.darkCharcoal,
+                      ),
+                    ),
+                    if (rejected)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await GoogleSignInService.signOut();
+                            if (mounted) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                          child: const Text('Logout'),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -285,6 +309,9 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         'ngoName': ngoName,
         'branchName': branchName,
         'status': 'pending',
+        'blocked': false,
+        'online': true,
+        'assigned': false,
       }, SetOptions(merge: true));
 
       // Store request in life-line-ngo database under selected NGO's requests subcollection
@@ -302,7 +329,10 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
               'ngoName': ngoName,
               'branchName': branchName,
               'status': 'pending',
-            });
+              'blocked': false,
+              'online': true,
+              'assigned': false,
+            }, SetOptions(merge: true));
       }
 
       if (mounted) {
