@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:life_line_rescuer/providers/landing_page_provider.dart';
 import 'package:life_line_rescuer/services/appwrite_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
@@ -15,13 +17,88 @@ class LandingPage extends ConsumerStatefulWidget {
 }
 
 class _LandingPageState extends ConsumerState<LandingPage> {
-  int currentIndex = 0;
-
   final List<Map<String, dynamic>> recentRequests = [
     {"name": "Ahmed Khan", "type": "Medical Emergency", "severity": "HIGH"},
     {"name": "Fatima Ali", "type": "Flood Rescue", "severity": "MEDIUM"},
     {"name": "Bilal Ahmed", "type": "Earthquake", "severity": "CRITICAL"},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchUserData();
+    });
+  }
+
+  Future<void> _fetchUserData() async {
+    if (!mounted) return;
+
+    // Set loading state to true
+    ref.read(landingPageProvider.notifier).setIsLoading(true);
+
+    try {
+      // Get current user from Firebase Auth
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        if (mounted) {
+          ref.read(landingPageProvider.notifier).setIsLoading(false);
+        }
+        return;
+      }
+
+      final userUid = user.uid;
+
+      // Fetch user data from Firestore
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userUid)
+              .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        if (userData != null) {
+          final requests = userData['requests'] ?? 0;
+
+          final assigned =
+              (userData['assigned'] as Map<String, dynamic>?) ?? {};
+
+          final assignments = assigned.length;
+
+          int highPriority = 0;
+
+          for (final entry in assigned.entries) {
+            if (entry.value == 'High Risk') {
+              highPriority++;
+            }
+          }
+
+          if (mounted) {
+            ref.read(landingPageProvider.notifier).setActiveRequests({
+              'activeRequests': requests,
+              'highPriority': highPriority,
+              'assignments': assignments,
+            });
+          }
+        }
+      }
+
+      if (mounted) {
+        ref.read(landingPageProvider.notifier).setIsLoading(false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ref.read(landingPageProvider.notifier).setIsLoading(false);
+        pageMessage(
+          'Failed to load user data. Please try again.',
+          context,
+          AppColors.error,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +134,11 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildStatisticsSection(),
+                        Consumer(
+                          builder: (context, ref, child) {
+                            return _buildStatisticsSection(ref);
+                          },
+                        ),
                         const SizedBox(height: AppSpacing.xxl),
 
                         _buildQuickActions(),
@@ -80,7 +161,7 @@ class _LandingPageState extends ConsumerState<LandingPage> {
 
   Widget _buildLoadingOverlay() {
     if (!context.mounted) return const SizedBox.shrink();
-    final isLoading = ref.watch(landingPageProvider);
+    final isLoading = ref.watch(landingPageProvider.select((v) => v.isLoading));
 
     if (!isLoading) {
       return const SizedBox.shrink();
@@ -96,7 +177,17 @@ class _LandingPageState extends ConsumerState<LandingPage> {
     );
   }
 
-  Widget _buildStatisticsSection() {
+  Widget _buildStatisticsSection(WidgetRef ref) {
+    if (!mounted) return const SizedBox.shrink();
+    final dashboardData = ref.watch(
+      landingPageProvider.select((v) => v.activeRequests),
+    );
+
+    final activeRequests = dashboardData['activeRequests'] ?? 0;
+
+    final highPriority = dashboardData['highPriority'] ?? 0;
+
+    final assignments = dashboardData['assignments'] ?? 0;
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -104,11 +195,14 @@ class _LandingPageState extends ConsumerState<LandingPage> {
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       childAspectRatio: 1.2,
-      children: const [
-        _StatCard(title: 'Active Requests', value: '12'),
-        _StatCard(title: 'High Priority', value: '4'),
-        _StatCard(title: 'Rescued Today', value: '8'),
-        _StatCard(title: 'Assignments', value: '3'),
+      children: [
+        _StatCard(title: 'Active Requests', value: activeRequests.toString()),
+
+        _StatCard(title: 'High Priority', value: highPriority.toString()),
+
+        const _StatCard(title: 'Rescued Today', value: '8'),
+
+        _StatCard(title: 'Assignments', value: assignments.toString()),
       ],
     );
   }
@@ -160,22 +254,27 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                   if (action['title'] == 'Guide') {
                     try {
                       if (mounted) {
-                        ref.read(landingPageProvider.notifier).state = true;
+                        ref
+                            .read(landingPageProvider.notifier)
+                            .setIsLoading(true);
                       }
                       await AppwriteService.downloadGuide();
 
-                      pageMessage(
-                        'Psychological First Aid Guidelines downloaded successfully',
-                        context,
-                        AppColors.success,
-                      );
                       if (mounted) {
-                        ref.read(landingPageProvider.notifier).state = false;
+                        ref
+                            .read(landingPageProvider.notifier)
+                            .setIsLoading(false);
                       }
                     } catch (e) {
                       if (!mounted) return;
-                      ref.read(landingPageProvider.notifier).state = false;
-                      pageMessage(e.toString(), context, AppColors.error);
+                      ref
+                          .read(landingPageProvider.notifier)
+                          .setIsLoading(false);
+                      pageMessage(
+                        'Failed to download the file, please retry',
+                        context,
+                        AppColors.error,
+                      );
                     }
                     return;
                   }

@@ -317,7 +317,8 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         'branchName': branchName,
         'status': 'pending',
         'blocked': false,
-        'assigned': false,
+        'online': true,
+        'requests': 0,
       }, SetOptions(merge: true));
 
       // Store request in life-line-ngo database under selected NGO's requests subcollection
@@ -339,7 +340,6 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
               'status': 'pending',
               'blocked': false,
               'online': true,
-              'assigned': false,
               'requests': 0,
             }, SetOptions(merge: true));
       }

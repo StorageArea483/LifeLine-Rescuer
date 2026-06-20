@@ -34,9 +34,9 @@ class BottomNavbar extends StatelessWidget {
           label: 'Map',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.emergency_outlined),
-          activeIcon: Icon(Icons.emergency),
-          label: 'Requests',
+          icon: Icon(Icons.chat_bubble_outline),
+          activeIcon: Icon(Icons.chat_bubble),
+          label: 'Chat',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline),

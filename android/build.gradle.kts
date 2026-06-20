@@ -15,8 +15,21 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    project.configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "com.android.support"
+                && !requested.name.contains("multidex")
+            ) {
+                useVersion("27.1.1")
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {
