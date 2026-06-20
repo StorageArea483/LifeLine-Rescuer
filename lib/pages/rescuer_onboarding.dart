@@ -23,16 +23,6 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  // Firebase configuration for life-line-ngo
-  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
-    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
-    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
-    messagingSenderId: '169949190544',
-    projectId: 'life-line-ngo',
-    authDomain: 'life-line-ngo.firebaseapp.com',
-    storageBucket: 'life-line-ngo.firebasestorage.app',
-  );
-
   @override
   void initState() {
     super.initState();
@@ -55,20 +45,10 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     }
 
     try {
-      FirebaseApp ngoApp;
-
-      try {
-        ngoApp = Firebase.app('life-line-ngo');
-      } catch (_) {
-        ngoApp = await Firebase.initializeApp(
-          name: 'life-line-ngo',
-          options: _ngoFirebaseOptions,
-        );
-      }
-
+      final ngoApp = Firebase.app('life-line-ngo');
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
-      await Future.wait([_fetchApprovedNgos(), _checkPendingRequest()]);
+      await _checkPendingRequest();
 
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setLoading(false);
@@ -86,19 +66,21 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     }
   }
 
-  Future<void> _fetchApprovedNgos() async {
+  Future<void> _fetchNgosByService(String service) async {
     if (_ngoFirestore == null) return;
 
-    try {
-      if (mounted) {
-        ref.read(rescueOnboardingProvider.notifier).setApprovedNgos([]);
-      }
+    if (mounted) {
+      ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(true);
+      // Clear previous results so stale data does not show.
+      ref.read(rescueOnboardingProvider.notifier).setApprovedNgos([]);
+    }
 
-      // Get the data once
+    try {
       final snapshot =
           await _ngoFirestore!
               .collection('ngo-info-database')
               .where('approved', isEqualTo: true)
+              .where('selectedProgram', isEqualTo: service)
               .get();
 
       final ngos =
@@ -114,10 +96,20 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
 
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setApprovedNgos(ngos);
+        ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(false);
       }
     } catch (e) {
+      if (mounted) {
+        ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(false);
+      }
       rethrow;
     }
+  }
+
+  void _onServiceSelected(String service) {
+    if (!mounted) return;
+    ref.read(rescueOnboardingProvider.notifier).setSelectedService(service);
+    _fetchNgosByService(service);
   }
 
   Future<void> _checkPendingRequest() async {
@@ -247,6 +239,19 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   Future<void> _handleSubmit(String selectedNgoId) async {
     if (!mounted) return;
     ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(true);
+    if (!mounted) return;
+    final selectedService = ref.read(rescueOnboardingProvider).selectedService;
+    if (selectedService == null) {
+      if (mounted) {
+        ref.read(rescueOnboardingProvider.notifier).setIsSubmitting(false);
+        pageMessage(
+          'Please select a service in order to continue.',
+          context,
+          AppColors.error,
+        );
+      }
+      return;
+    }
 
     try {
       User? currentUser = FirebaseAuth.instance.currentUser;
@@ -303,6 +308,8 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       final rescuerFirestore = FirebaseFirestore.instance;
       await rescuerFirestore.collection('users').doc(userUid).set({
         'id': userUid,
+        'ngoId': selectedNgoId,
+        'selectedService': selectedService,
         'firstName': firstName,
         'lastName': lastName,
         'phone': phone,
@@ -310,7 +317,6 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         'branchName': branchName,
         'status': 'pending',
         'blocked': false,
-        'online': true,
         'assigned': false,
       }, SetOptions(merge: true));
 
@@ -323,6 +329,8 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
             .doc(userUid)
             .set({
               'id': userUid,
+              'ngoId': selectedNgoId,
+              'selectedService': selectedService,
               'firstName': firstName,
               'lastName': lastName,
               'phone': phone,
@@ -332,6 +340,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
               'blocked': false,
               'online': true,
               'assigned': false,
+              'requests': 0,
             }, SetOptions(merge: true));
       }
 
@@ -619,6 +628,12 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
           const SizedBox(height: AppSpacing.lg),
           Consumer(
             builder: (context, ref, child) {
+              return _buildServiceSelector(ref);
+            },
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Consumer(
+            builder: (context, ref, child) {
               return _buildNgoDropdown(ref);
             },
           ),
@@ -626,6 +641,71 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
           _buildSubmitButton(),
         ],
       ),
+    );
+  }
+
+  Widget _buildServiceSelector(WidgetRef ref) {
+    if (!mounted) return const SizedBox.shrink();
+    final selectedService = ref.watch(
+      rescueOnboardingProvider.select((v) => v.selectedService),
+    );
+
+    const services = ['Floods', 'Earthquake', 'Medical'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Select Service', style: AppText.fieldLabel),
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: AppDecorations.textFieldBorderRadius,
+            border: Border.all(color: AppColors.borderColor, width: 1),
+          ),
+          child: Column(
+            children:
+                services.map((service) {
+                  final isSelected =
+                      selectedService?.toLowerCase() == service.toLowerCase();
+                  return InkWell(
+                    borderRadius: AppDecorations.textFieldBorderRadius,
+                    onTap: () => _onServiceSelected(service),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Radio<String>(
+                            value: service,
+                            groupValue: selectedService,
+                            activeColor: AppColors.primaryMaroon,
+                            onChanged: (value) {
+                              if (value != null) _onServiceSelected(value);
+                            },
+                          ),
+                          Text(
+                            service,
+                            style: AppText.fieldLabel.copyWith(
+                              color:
+                                  isSelected
+                                      ? AppColors.primaryMaroon
+                                      : AppColors.darkCharcoal,
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -765,16 +845,28 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
 
   Widget _buildNgoDropdown(WidgetRef ref) {
     if (!mounted) return const SizedBox.shrink();
+
+    final selectedService = ref.watch(
+      rescueOnboardingProvider.select((v) => v.selectedService),
+    );
+
+    // Gate: service must be selected first
+    if (selectedService == null) {
+      return const SizedBox.shrink();
+    }
+
+    final isNgoLoading = ref.watch(
+      rescueOnboardingProvider.select((v) => v.isNgoLoading),
+    );
+
     final approvedNgos = ref.watch(
       rescueOnboardingProvider.select((v) => v.approvedNgos),
     );
 
-    if (!mounted) return const SizedBox.shrink();
     final selectedNgoId = ref.watch(
       rescueOnboardingProvider.select((v) => v.selectedNgo),
     );
 
-    if (!mounted) return const SizedBox.shrink();
     final isExpanded = ref.watch(
       rescueOnboardingProvider.select((v) => v.isDropdownExpanded),
     );
@@ -789,10 +881,24 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       children: [
         const Text('Select NGO', style: AppText.fieldLabel),
         const SizedBox(height: AppSpacing.sm),
-        _buildDropdownHeader(isExpanded, selectedNgo),
-        if (isExpanded) ...[
-          const SizedBox(height: AppSpacing.sm),
-          _buildDropdownList(approvedNgos),
+        // Show a circular loader while NGOs are being fetched
+        if (isNgoLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppColors.primaryMaroon,
+                ),
+              ),
+            ),
+          )
+        else ...[
+          _buildDropdownHeader(isExpanded, selectedNgo),
+          if (isExpanded) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _buildDropdownList(approvedNgos),
+          ],
         ],
       ],
     );

@@ -9,6 +9,8 @@ class RescuePageNotifier extends StateNotifier<RescuePageState> {
           isLoading: false,
           approvedNgos: [],
           selectedNgo: null,
+          selectedService: null,
+          isNgoLoading: false,
           isDropdownExpanded: false,
           isSubmitting: false,
           googleAuthenticated: false,
@@ -24,6 +26,19 @@ class RescuePageNotifier extends StateNotifier<RescuePageState> {
 
   void setSelectedNgo(String? ngoId) {
     state = state.copyWith(selectedNgo: ngoId);
+  }
+
+  void setSelectedService(String? service) {
+    state = state.copyWith(
+      selectedService: service,
+      // Reset NGO selection and collapse dropdown when service changes
+      selectedNgo: null,
+      isDropdownExpanded: false,
+    );
+  }
+
+  void setIsNgoLoading(bool loading) {
+    state = state.copyWith(isNgoLoading: loading);
   }
 
   void setIsDropdownExpanded(bool isExpanded) {
@@ -43,6 +58,8 @@ class RescuePageState {
   final bool isLoading;
   final List<Map<String, dynamic>> approvedNgos;
   final String? selectedNgo;
+  final String? selectedService;
+  final bool isNgoLoading;
   final bool isDropdownExpanded;
   final bool isSubmitting;
   final bool googleAuthenticated;
@@ -51,6 +68,8 @@ class RescuePageState {
     this.isLoading = false,
     this.approvedNgos = const [],
     this.selectedNgo,
+    this.selectedService,
+    this.isNgoLoading = false,
     this.isDropdownExpanded = false,
     this.isSubmitting = false,
     this.googleAuthenticated = false,
@@ -60,6 +79,8 @@ class RescuePageState {
     bool? isLoading,
     List<Map<String, dynamic>>? approvedNgos,
     String? selectedNgo,
+    Object? selectedService = _sentinel,
+    bool? isNgoLoading,
     bool? isDropdownExpanded,
     bool? isSubmitting,
     bool? googleAuthenticated,
@@ -68,12 +89,19 @@ class RescuePageState {
       isLoading: isLoading ?? this.isLoading,
       approvedNgos: approvedNgos ?? this.approvedNgos,
       selectedNgo: selectedNgo ?? this.selectedNgo,
+      selectedService: selectedService == _sentinel
+          ? this.selectedService
+          : selectedService as String?,
+      isNgoLoading: isNgoLoading ?? this.isNgoLoading,
       isDropdownExpanded: isDropdownExpanded ?? this.isDropdownExpanded,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       googleAuthenticated: googleAuthenticated ?? this.googleAuthenticated,
     );
   }
 }
+
+// Sentinel value to allow null to be explicitly passed in copyWith for selectedService.
+const Object _sentinel = Object();
 
 final rescueOnboardingProvider =
     StateNotifierProvider.autoDispose<RescuePageNotifier, RescuePageState>(
