@@ -7,6 +7,8 @@ import 'package:life_line_rescuer/services/appwrite_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
+import 'package:life_line_rescuer/widgets/global/global_bottom_sheet.dart';
+import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 
 class LandingPage extends ConsumerStatefulWidget {
@@ -167,14 +169,7 @@ class _LandingPageState extends ConsumerState<LandingPage> {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      color: AppColors.softBackground,
-      child: const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryMaroon),
-        ),
-      ),
-    );
+    return pageLoading(context);
   }
 
   Widget _buildStatisticsSection(WidgetRef ref) {
@@ -248,49 +243,73 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                   ),
                 ],
               ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  if (action['title'] == 'Guide') {
-                    try {
-                      if (mounted) {
-                        ref
-                            .read(landingPageProvider.notifier)
-                            .setIsLoading(true);
-                      }
-                      await AppwriteService.downloadGuide();
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final dashboardRequests =
+                      ref.read(landingPageProvider).activeRequests;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      if (action['title'] == 'Guide') {
+                        try {
+                          if (mounted) {
+                            ref
+                                .read(landingPageProvider.notifier)
+                                .setIsLoading(true);
+                          }
+                          await AppwriteService.downloadGuide();
 
-                      if (mounted) {
-                        ref
-                            .read(landingPageProvider.notifier)
-                            .setIsLoading(false);
+                          if (mounted) {
+                            ref
+                                .read(landingPageProvider.notifier)
+                                .setIsLoading(false);
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+                          ref
+                              .read(landingPageProvider.notifier)
+                              .setIsLoading(false);
+                          pageMessage(
+                            'Failed to download the file, please retry',
+                            context,
+                            AppColors.error,
+                          );
+                        }
+                        return;
+                      } else if (action['title'] == 'Missions') {
+                        // Navigate to Missions page
+                        if (mounted) {
+                          GlobalBottomSheet.show(
+                            context,
+                            assignments:
+                                dashboardRequests['assignments']
+                                    as List<String>?,
+                          );
+                        }
+                      } else if (action['title'] == 'Requests') {
+                        // Navigate to Requests page
+                      } else if (action['title'] == 'History') {
+                        // Navigate to History page
+                      } else if (action['title'] == 'Success') {
+                        // Navigate to Success Stories page
+                      } else if (action['title'] == 'Reports') {
+                        // Navigate to Reports page
                       }
-                    } catch (e) {
-                      if (!mounted) return;
-                      ref
-                          .read(landingPageProvider.notifier)
-                          .setIsLoading(false);
-                      pageMessage(
-                        'Failed to download the file, please retry',
-                        context,
-                        AppColors.error,
-                      );
-                    }
-                    return;
-                  }
-                },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      action['icon'] as IconData,
-                      size: 30,
-                      color: AppColors.primaryMaroon,
+                    },
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          action['icon'] as IconData,
+                          size: 30,
+                          color: AppColors.primaryMaroon,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(action['title'] as String, style: AppText.small),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(action['title'] as String, style: AppText.small),
-                  ],
-                ),
+                  );
+                },
               ),
             );
           },

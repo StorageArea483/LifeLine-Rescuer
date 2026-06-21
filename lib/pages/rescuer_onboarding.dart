@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_line_rescuer/services/auth_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/providers/rescuer_onboarding_provider.dart';
+import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/google_authentication.dart';
 
@@ -45,8 +46,9 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     }
 
     try {
-      final ngoApp = Firebase.app('life-line-ngo');
-      _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
+      _ngoFirestore = FirebaseFirestore.instanceFor(
+        app: Firebase.app('life-line-ngo'),
+      );
 
       await _checkPendingRequest();
 
@@ -590,14 +592,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      color: AppColors.softBackground,
-      child: const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryMaroon),
-        ),
-      ),
-    );
+    return pageLoading(context);
   }
 
   Widget _buildLogo() {
