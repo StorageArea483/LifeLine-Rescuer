@@ -13,6 +13,7 @@ void pageMessage(String message, BuildContext context, Color color) {
             color: AppColors.white,
           ),
         ),
+        //duration: const Duration(minutes: 2),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

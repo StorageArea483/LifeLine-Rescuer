@@ -7,9 +7,10 @@ import 'package:life_line_rescuer/widgets/check_connection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  await SecondaryFirebaseApps.initialize();
+  await Future.wait([
+    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+    SecondaryFirebaseApps.initialize(),
+  ]);
 
   runApp(const ProviderScope(child: MyApp()));
 }

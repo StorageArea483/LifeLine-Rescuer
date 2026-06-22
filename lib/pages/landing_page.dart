@@ -7,7 +7,8 @@ import 'package:life_line_rescuer/services/appwrite_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
-import 'package:life_line_rescuer/widgets/global/global_bottom_sheet.dart';
+import 'package:life_line_rescuer/pages/service_cards/missions_card_sheet.dart';
+import 'package:life_line_rescuer/pages/service_cards/requests_card_sheet.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 
@@ -67,7 +68,8 @@ class _LandingPageState extends ConsumerState<LandingPage> {
           final assigned =
               (userData['assigned'] as Map<String, dynamic>?) ?? {};
 
-          final assignments = assigned.length;
+          final assignmentCount = assigned.length;
+          final assignmentIds = assigned.keys.toList(); // List<String>
 
           int highPriority = 0;
 
@@ -81,7 +83,9 @@ class _LandingPageState extends ConsumerState<LandingPage> {
             ref.read(landingPageProvider.notifier).setActiveRequests({
               'activeRequests': requests,
               'highPriority': highPriority,
-              'assignments': assignments,
+              'assignments': assignmentCount, // int, for the stat card
+              'assignmentIds':
+                  assignmentIds, // List<String>, for the bottom sheet
             });
           }
         }
@@ -279,15 +283,20 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                       } else if (action['title'] == 'Missions') {
                         // Navigate to Missions page
                         if (mounted) {
-                          GlobalBottomSheet.show(
+                          MissionsCardSheet.show(
                             context,
-                            assignments:
-                                dashboardRequests['assignments']
-                                    as List<String>?,
+                            assignments: dashboardRequests['assignmentIds'],
                           );
                         }
                       } else if (action['title'] == 'Requests') {
-                        // Navigate to Requests page
+                        // Navigate to Requests sheet
+                        if (mounted) {
+                          final active = dashboardRequests['activeRequests'] ?? 0;
+                          final ids = (dashboardRequests['assignmentIds'] as List<dynamic>?)?.cast<String>() ?? [];
+                          // Avoid importing at top; use local import
+                          // Show requests sheet
+                          RequestsCardSheet.show(context, activeRequests: active, assignmentIds: ids);
+                        }
                       } else if (action['title'] == 'History') {
                         // Navigate to History page
                       } else if (action['title'] == 'Success') {

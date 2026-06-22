@@ -33,3 +33,12 @@ final globalPageProvider =
     StateNotifierProvider.autoDispose<GlobalPageNotifier, GlobalPageState>(
       (ref) => GlobalPageNotifier(),
     );
+
+// Family provider to track each victim card's expanded state independently
+final victimCardExpandedProvider = StateProvider.family
+    .autoDispose<bool, String>((ref, victimId) => false);
+
+// Family provider to track each victim's rescued state independently
+final victimRescuedProvider = StateProvider.family.autoDispose<bool, String>(
+  (ref, uid) => false,
+);
