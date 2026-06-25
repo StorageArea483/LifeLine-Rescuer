@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_line_rescuer/pages/rescuer_map_page.dart';
 import 'package:life_line_rescuer/providers/missions_card_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
+import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
 class MissionsCardSheet {
   static void show(BuildContext context, {List<String>? assignments}) {
@@ -68,67 +70,70 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
   }
 
   void _listenToVictimData() {
-    if (_victimFirestore == null || widget.assigned == null) return;
+  if (_victimFirestore == null || widget.assigned == null) return;
 
-    try {
-      // Cancel any existing subscriptions before setting up new ones
-      for (final subscription in _victimSubscriptions) {
-        subscription.cancel();
-      }
-      _victimSubscriptions.clear();
+  try {
+    // Cancel existing subscriptions
+    for (final subscription in _victimSubscriptions) {
+      subscription.cancel();
+    }
+    _victimSubscriptions.clear();
 
-      // Initialize the list with placeholder entries for each assigned uid
-      final List<Map<String, dynamic>> victims =
-          widget.assigned!.map((uid) => {'uid': uid}).toList();
+    // Start with an empty list
+    if (mounted) {
+      ref.read(globalPageProvider.notifier).setVictims([]);
+    }
 
-      if (mounted) {
-        ref.read(globalPageProvider.notifier).setVictims(victims);
-      }
+    for (final uid in widget.assigned!) {
+      final subscription = _victimFirestore!
+          .collection('users')
+          .doc(uid)
+          .snapshots()
+          .listen((docSnapshot) {
+            if (!mounted) return;
 
-      for (final uid in widget.assigned!) {
-        final subscription = _victimFirestore!
-            .collection('users')
-            .doc(uid)
-            .snapshots()
-            .listen((docSnapshot) {
-              if (!mounted) return;
+            if (!docSnapshot.exists) return;
 
-              if (!docSnapshot.exists) return;
+            final data = docSnapshot.data();
 
-              final data = docSnapshot.data();
+            // Ignore all non-approved requests
+            if (data?['requestAccepted'] != 'accepted') {
+              return;
+            }
 
-              final updatedVictim = {
-                'uid': uid,
-                'name': data?['name'] ?? 'N/A',
-                'severity': data?['severity'] ?? 'N/A',
-                'location': data?['location'] ?? 'N/A',
-                'disasterType': data?['disasterType'] ?? 'N/A',
-                'online': data?['online'] ?? false,
-              };
+            final updatedVictim = {
+              'uid': uid,
+              'name': data?['name'] ?? 'N/A',
+              'severity': data?['severity'] ?? 'N/A',
+              'location': data?['location'] ?? 'N/A',
+              'disasterType': data?['disasterType'] ?? 'N/A',
+              'online': data?['online'] ?? false,
+              'latitude': data?['latitude'] ?? 0.0,
+              'longitude': data?['longitude'] ?? 0.0
+            };
 
-              // Update only this victim's entry in the existing list
-              if (!mounted) return;
-              final currentVictims = ref.read(globalPageProvider).victims;
-              final updatedList =
-                  currentVictims.map((victim) {
-                    if (victim['uid'] == uid) {
-                      return updatedVictim;
-                    }
-                    return victim;
-                  }).toList();
+            final currentVictims =
+                ref.read(globalPageProvider).victims;
 
-              if (!mounted) return;
-              ref.read(globalPageProvider.notifier).setVictims(updatedList);
-            });
+            // Remove old version of this victim if it exists
+            final updatedList = currentVictims
+                .where((victim) => victim['uid'] != uid)
+                .toList();
 
-        _victimSubscriptions.add(subscription);
-      }
-    } catch (e) {
-      if (mounted) {
-        ref.read(globalPageProvider.notifier).setIsLoading(false);
-      }
+            // Add the latest approved version
+            updatedList.add(updatedVictim);
+
+            ref.read(globalPageProvider.notifier).setVictims(updatedList);
+          });
+
+      _victimSubscriptions.add(subscription);
+    }
+  } catch (e) {
+    if (mounted) {
+      ref.read(globalPageProvider.notifier).setIsLoading(false);
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +249,8 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
     final disasterType = victim['disasterType'] ?? 'N/A';
     final uid = victim['uid'] ?? '';
     final isOnline = victim['online'] ?? false;
-
+    final latitude = victim['latitude'] ?? 0.0;
+    final longitude = victim['longitude'] ?? 0.0;
     if (!mounted) return const SizedBox.shrink();
     final isExpanded = ref.watch(victimCardExpandedProvider(uid));
 
@@ -332,7 +338,9 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
                         color: AppColors.primaryMaroon,
                         size: ResponsiveHelper.iconSize(context),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        pageNavigation(RescuerMapPage(latitude: latitude, longitude: longitude), context);
+                      },
                     ),
                     Consumer(
                       builder: (context, ref, child) {

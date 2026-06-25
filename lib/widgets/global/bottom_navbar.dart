@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:life_line_rescuer/pages/landing_page.dart';
+import 'package:life_line_rescuer/pages/rescuer_map_page.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
+import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
 class BottomNavbar extends StatelessWidget {
   final int currentIndex;
@@ -14,8 +17,11 @@ class BottomNavbar extends StatelessWidget {
         if (index == currentIndex) {
           return;
         } else if (index == 0 && context.mounted) {
-        } else if (index == 1 && context.mounted) {
-        } else if (index == 2 && context.mounted) {}
+          pageNavigation(const LandingPage(), context);
+        }else if (index == 1 && context.mounted) {
+          pageNavigation(const RescuerMapPage(latitude: null, longitude: null), context);
+        } else if (index == 2 && context.mounted) {
+        } else if (index == 3 && context.mounted) {}
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: AppColors.surfaceLight,

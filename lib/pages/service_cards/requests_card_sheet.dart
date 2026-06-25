@@ -52,7 +52,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 				app: Firebase.app('life-line-victim'),
 			);
 
-			await _fetchVictimDataOnce();
+			await fetchPendingRequests();
 
 			if (!mounted) return;
 			ref.read(globalPageProvider.notifier).setIsLoading(false);
@@ -62,43 +62,55 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 		}
 	}
 
-	Future<void> _fetchVictimDataOnce() async {
+	Future<void> fetchPendingRequests() async {
 		if (_victimFirestore == null || widget.assignmentIds == null) return;
 
 		try {
-			// Initialize placeholder victims list
-			final List<Map<String, dynamic>> victims =
-					widget.assignmentIds!.map((uid) => {'uid': uid}).toList();
+			ref.read(globalPageProvider.notifier).setIsLoading(true);
 
-			if (mounted) {
-				ref.read(globalPageProvider.notifier).setVictims(victims);
-			}
+			final List<Map<String, dynamic>> pending = [];
 
-			// Fetch each victim once using get()
 			for (final uid in widget.assignmentIds!) {
 				final doc = await _victimFirestore!.collection('users').doc(uid).get();
-				if (!mounted) return;
 				if (!doc.exists) continue;
 				final data = doc.data();
+				final status = data?['requestAccepted'] ?? 'pending';
+				if (status != 'pending') continue;
 
-				final updatedVictim = {
+				pending.add({
 					'uid': uid,
 					'name': data?['name'] ?? 'N/A',
 					'severity': data?['severity'] ?? 'N/A',
 					'location': data?['location'] ?? 'N/A',
-				};
+					'requestAccepted': status,
+				});
+			}
 
-				if (!mounted) return;
-				final currentVictims = ref.read(globalPageProvider).victims;
-				final updatedList = currentVictims.map((victim) {
-					if (victim['uid'] == uid) return updatedVictim;
-					return victim;
-				}).toList();
-
-				if (!mounted) return;
-				ref.read(globalPageProvider.notifier).setVictims(updatedList);
+			if (mounted) {
+				ref.read(globalPageProvider.notifier).setVictims(pending);
 			}
 		} catch (e) {
+			// ignore errors for now
+		} finally {
+			if (mounted) ref.read(globalPageProvider.notifier).setIsLoading(false);
+		}
+	}
+
+	Future<void> updateRequestStatus(String uid, String newStatus) async {
+		if (_victimFirestore == null) return;
+		if (!mounted) return;
+
+		ref.read(globalPageProvider.notifier).setIsLoading(true);
+		try {
+			await _victimFirestore!.collection('users').doc(uid).set(
+				{'requestAccepted': newStatus},
+				SetOptions(merge: true),
+			);
+			// Refresh the pending list after update
+			await fetchPendingRequests();
+		} catch (e) {
+			// ignore
+		} finally {
 			if (mounted) ref.read(globalPageProvider.notifier).setIsLoading(false);
 		}
 	}
@@ -298,10 +310,12 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
       Row(
         children: [
           Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // Accept Request
-              },
+						child: ElevatedButton.icon(
+							onPressed: () async {
+								if (victim['uid'] != null) {
+									await updateRequestStatus(victim['uid'], 'accepted');
+								}
+							},
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -321,10 +335,12 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
           const SizedBox(width: 12),
 
           Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // Reject Request
-              },
+						child: OutlinedButton.icon(
+							onPressed: () async {
+								if (victim['uid'] != null) {
+									await updateRequestStatus(victim['uid'], 'rejected');
+								}
+							},
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 side: const BorderSide(
