@@ -19,7 +19,7 @@ class BottomNavbar extends StatelessWidget {
         } else if (index == 0 && context.mounted) {
           pageNavigation(const LandingPage(), context);
         }else if (index == 1 && context.mounted) {
-          pageNavigation(const RescuerMapPage(latitude: null, longitude: null), context);
+          pageNavigation(const RescuerMapPage(latitude: null, longitude: null, victimUid: null,), context);
         } else if (index == 2 && context.mounted) {
         } else if (index == 3 && context.mounted) {}
       },

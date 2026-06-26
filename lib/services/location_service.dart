@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class LocationService {
   /// Update user location in Firestore
-  static Future<void> updateUserLocation(String? address, String latitude, String longitude) async {
+  static Future<void> updateUserLocation(String? address, double latitude, double longitude) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || address == null || address.isEmpty) return;

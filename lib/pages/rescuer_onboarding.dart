@@ -3,11 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/services/auth_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/providers/rescuer_onboarding_provider.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
+import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'package:life_line_rescuer/widgets/google_authentication.dart';
 
 class RescuerOnboarding extends ConsumerStatefulWidget {
@@ -60,7 +62,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         ref.read(rescueOnboardingProvider.notifier).setLoading(false);
 
         pageMessage(
-          'An unexpected error occurred please retry',
+          'An unexpected error occurred, Please retry',
           context,
           AppColors.error,
         );
@@ -104,7 +106,8 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(false);
       }
-      rethrow;
+      pageMessage('An unexpected error occurred, Please retry', context, AppColors.error);
+      pageNavigation(const LandingPage(), context);
     }
   }
 
@@ -139,11 +142,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         _showPendingDialog(true);
       }
     } catch (_) {
-      pageMessage(
-        'An unexpected error occurred, please retry',
-        context,
-        AppColors.error,
-      );
+      rethrow;
     }
   }
 

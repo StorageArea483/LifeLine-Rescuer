@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/providers/missions_card_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
+import 'package:life_line_rescuer/widgets/global/page_message.dart';
+import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
 class RequestsCardSheet {
 	static void show(BuildContext context,
@@ -59,6 +62,8 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 		} catch (e) {
 			if (!mounted) return;
 			ref.read(globalPageProvider.notifier).setIsLoading(false);
+       pageMessage('Failed to load victim data, Please try again', context, AppColors.error);
+       pageNavigation(const LandingPage(), context);
 		}
 	}
 
@@ -90,7 +95,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 				ref.read(globalPageProvider.notifier).setVictims(pending);
 			}
 		} catch (e) {
-			// ignore errors for now
+			rethrow;
 		} finally {
 			if (mounted) ref.read(globalPageProvider.notifier).setIsLoading(false);
 		}
@@ -109,7 +114,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 			// Refresh the pending list after update
 			await fetchPendingRequests();
 		} catch (e) {
-			// ignore
+			pageMessage('Failed to update status, Please try again', context, AppColors.error);
 		} finally {
 			if (mounted) ref.read(globalPageProvider.notifier).setIsLoading(false);
 		}

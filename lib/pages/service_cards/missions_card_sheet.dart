@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/pages/rescuer_map_page.dart';
 import 'package:life_line_rescuer/providers/missions_card_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
+import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'dart:developer' as developer;
 
 class MissionsCardSheet {
   static void show(BuildContext context, {List<String>? assignments}) {
@@ -66,6 +69,8 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
     } catch (e) {
       if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(false);
+      pageMessage('Failed to load victim data, Please try again', context, AppColors.error);
+      pageNavigation(const LandingPage(), context);
     }
   }
 
@@ -109,7 +114,7 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
               'disasterType': data?['disasterType'] ?? 'N/A',
               'online': data?['online'] ?? false,
               'latitude': data?['latitude'] ?? 0.0,
-              'longitude': data?['longitude'] ?? 0.0
+              'longitude': data?['longitude'] ?? 0.0,
             };
 
             final currentVictims =
@@ -129,11 +134,10 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
       _victimSubscriptions.add(subscription);
     }
   } catch (e) {
-    if (mounted) {
-      ref.read(globalPageProvider.notifier).setIsLoading(false);
-    }
+    rethrow;
   }
 }
+
 
   @override
   Widget build(BuildContext context) {
@@ -339,29 +343,9 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
                         size: ResponsiveHelper.iconSize(context),
                       ),
                       onPressed: () {
-                        pageNavigation(RescuerMapPage(latitude: latitude, longitude: longitude), context);
-                      },
-                    ),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        if (!mounted) return const SizedBox.shrink();
-                        final isRescued = ref.watch(victimRescuedProvider(uid));
-                        return IconButton(
-                          icon: Icon(
-                            isRescued
-                                ? Icons.check_circle
-                                : Icons.pending_outlined,
-                            color: AppColors.primaryMaroon,
-                            size: ResponsiveHelper.iconSize(context),
-                          ),
-                          onPressed: () {
-                            if (mounted) {
-                              ref
-                                  .read(victimRescuedProvider(uid).notifier)
-                                  .state = !isRescued;
-                            }
-                          },
-                        );
+                        pageNavigation(RescuerMapPage(latitude: latitude, longitude: longitude, victimUid: uid,), context);
+                        developer.log('VICTIM LAT: $latitude');
+                        developer.log('VICTIM LNG: $longitude');
                       },
                     ),
                     AnimatedRotation(
