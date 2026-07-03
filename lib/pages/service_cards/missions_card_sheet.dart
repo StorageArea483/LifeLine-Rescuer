@@ -11,7 +11,7 @@ import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
-import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 
 class MissionsCardSheet {
   static void show(BuildContext context, {List<String>? assignments}) {
@@ -37,6 +37,24 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
   FirebaseFirestore? _victimFirestore;
   final List<StreamSubscription> _victimSubscriptions = [];
 
+  // life-line-victim database credentials
+  static const FirebaseOptions _victimAndroidOptions = FirebaseOptions(
+    apiKey: 'AIzaSyByihQ3YBdrJUrAAxFSX3257fUMa0AJ6uo',
+    appId: '1:503939690280:android:aff06bb9fb777faf792a1d',
+    messagingSenderId: '503939690280',
+    projectId: 'project-life-line',
+    storageBucket: 'project-life-line.firebasestorage.app',
+  );
+
+  static const FirebaseOptions _victimIosOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBDX51z8C6yiZnbEHgHK70UxnRZcn5oSd0',
+    appId: '1:503939690280:ios:ed2fb1d85f841609792a1d',
+    messagingSenderId: '503939690280',
+    projectId: 'project-life-line',
+    storageBucket: 'project-life-line.firebasestorage.app',
+    iosBundleId: 'com.example.lifeLine',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -54,13 +72,26 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
   }
 
   Future<void> _initSecondaryFirebase() async {
+    if (!mounted) return;
+
     try {
-      if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(true);
 
-      _victimFirestore = FirebaseFirestore.instanceFor(
-        app: Firebase.app('life-line-victim'),
-      );
+      FirebaseApp victimApp;
+      // Victim Firebase
+      try {
+        victimApp = await Firebase.initializeApp(
+          name: 'life-line-victim',
+          options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
+        );
+      } catch (_) {
+        victimApp = await Firebase.initializeApp(
+          name: 'life-line-victim',
+          options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
+        );
+      }
+
+      _victimFirestore = FirebaseFirestore.instanceFor(app: victimApp);
 
       _listenToVictimData();
 
@@ -69,75 +100,78 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
     } catch (e) {
       if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(false);
-      pageMessage('Failed to load victim data, Please try again', context, AppColors.error);
+      pageMessage(
+        'Failed to load victim data, Please try again',
+        context,
+        AppColors.error,
+      );
       pageNavigation(const LandingPage(), context);
     }
   }
 
   void _listenToVictimData() {
-  if (_victimFirestore == null || widget.assigned == null) return;
+    if (_victimFirestore == null || widget.assigned == null) return;
 
-  try {
-    // Cancel existing subscriptions
-    for (final subscription in _victimSubscriptions) {
-      subscription.cancel();
+    try {
+      // Cancel existing subscriptions
+      for (final subscription in _victimSubscriptions) {
+        subscription.cancel();
+      }
+      _victimSubscriptions.clear();
+
+      // Start with an empty list
+      if (mounted) {
+        ref.read(globalPageProvider.notifier).setVictims([]);
+      }
+
+      for (final uid in widget.assigned!) {
+        final subscription = _victimFirestore!
+            .collection('users')
+            .doc(uid)
+            .snapshots()
+            .listen((docSnapshot) {
+              if (!mounted) return;
+
+              if (!docSnapshot.exists) return;
+
+              final data = docSnapshot.data();
+
+              // Ignore all non-approved requests
+              if (data?['requestAccepted'] != 'accepted') {
+                return;
+              }
+
+              final updatedVictim = {
+                'uid': uid,
+                'name': data?['name'] ?? 'N/A',
+                'severity': data?['severity'] ?? 'N/A',
+                'location': data?['location'] ?? 'N/A',
+                'disasterType': data?['disasterType'] ?? 'N/A',
+                'online': data?['online'] ?? false,
+                'latitude': data?['latitude'] ?? 0.0,
+                'longitude': data?['longitude'] ?? 0.0,
+              };
+
+              final currentVictims = ref.read(globalPageProvider).victims;
+
+              // Remove old version of this victim if it exists
+              final updatedList =
+                  currentVictims
+                      .where((victim) => victim['uid'] != uid)
+                      .toList();
+
+              // Add the latest approved version
+              updatedList.add(updatedVictim);
+
+              ref.read(globalPageProvider.notifier).setVictims(updatedList);
+            });
+
+        _victimSubscriptions.add(subscription);
+      }
+    } catch (e) {
+      rethrow;
     }
-    _victimSubscriptions.clear();
-
-    // Start with an empty list
-    if (mounted) {
-      ref.read(globalPageProvider.notifier).setVictims([]);
-    }
-
-    for (final uid in widget.assigned!) {
-      final subscription = _victimFirestore!
-          .collection('users')
-          .doc(uid)
-          .snapshots()
-          .listen((docSnapshot) {
-            if (!mounted) return;
-
-            if (!docSnapshot.exists) return;
-
-            final data = docSnapshot.data();
-
-            // Ignore all non-approved requests
-            if (data?['requestAccepted'] != 'accepted') {
-              return;
-            }
-
-            final updatedVictim = {
-              'uid': uid,
-              'name': data?['name'] ?? 'N/A',
-              'severity': data?['severity'] ?? 'N/A',
-              'location': data?['location'] ?? 'N/A',
-              'disasterType': data?['disasterType'] ?? 'N/A',
-              'online': data?['online'] ?? false,
-              'latitude': data?['latitude'] ?? 0.0,
-              'longitude': data?['longitude'] ?? 0.0,
-            };
-
-            final currentVictims =
-                ref.read(globalPageProvider).victims;
-
-            // Remove old version of this victim if it exists
-            final updatedList = currentVictims
-                .where((victim) => victim['uid'] != uid)
-                .toList();
-
-            // Add the latest approved version
-            updatedList.add(updatedVictim);
-
-            ref.read(globalPageProvider.notifier).setVictims(updatedList);
-          });
-
-      _victimSubscriptions.add(subscription);
-    }
-  } catch (e) {
-    rethrow;
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -343,9 +377,14 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
                         size: ResponsiveHelper.iconSize(context),
                       ),
                       onPressed: () {
-                        pageNavigation(RescuerMapPage(latitude: latitude, longitude: longitude, victimUid: uid,), context);
-                        developer.log('VICTIM LAT: $latitude');
-                        developer.log('VICTIM LNG: $longitude');
+                        pageNavigation(
+                          RescuerMapPage(
+                            latitude: latitude,
+                            longitude: longitude,
+                            victimUid: uid,
+                          ),
+                          context,
+                        );
                       },
                     ),
                     AnimatedRotation(

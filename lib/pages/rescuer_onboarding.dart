@@ -26,6 +26,16 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
 
+  // life-line-ngo database credentials
+  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
+    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
+    messagingSenderId: '169949190544',
+    projectId: 'life-line-ngo',
+    authDomain: 'life-line-ngo.firebaseapp.com',
+    storageBucket: 'life-line-ngo.firebasestorage.app',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -48,9 +58,17 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     }
 
     try {
-      _ngoFirestore = FirebaseFirestore.instanceFor(
-        app: Firebase.app('life-line-ngo'),
-      );
+      FirebaseApp ngoApp;
+      try {
+        ngoApp = Firebase.app('life-line-ngo');
+      } catch (_) {
+        ngoApp = await Firebase.initializeApp(
+          name: 'life-line-ngo',
+          options: _ngoFirebaseOptions,
+        );
+      }
+
+      _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
       await _checkPendingRequest();
 
@@ -106,7 +124,11 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       if (mounted) {
         ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(false);
       }
-      pageMessage('An unexpected error occurred, Please retry', context, AppColors.error);
+      pageMessage(
+        'An unexpected error occurred, Please retry',
+        context,
+        AppColors.error,
+      );
       pageNavigation(const LandingPage(), context);
     }
   }

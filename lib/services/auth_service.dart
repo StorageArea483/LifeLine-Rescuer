@@ -49,7 +49,11 @@ class GoogleSignInService {
             .doc(user.uid);
         final userSnapshot = await userDoc.get();
         if (!userSnapshot.exists) {
-          await userDoc.set({'photoURL': user.photoURL});
+          await userDoc.set({
+            'email': user.email ?? '',
+            'photoURL': user.photoURL,
+            'provider': 'google',
+          });
         }
       }
       return userCredential;

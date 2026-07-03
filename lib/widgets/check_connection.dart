@@ -4,13 +4,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_line_rescuer/pages/landing_page.dart';
+import 'package:life_line_rescuer/pages/offline_connectivity.dart';
+import 'package:life_line_rescuer/pages/rescuer_blocked.dart';
 import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
-import 'package:life_line_rescuer/providers/auth_provider.dart';
-import 'package:life_line_rescuer/providers/rescuer_access_provider.dart';
-import 'package:life_line_rescuer/widgets/rescuer_blocked.dart';
+import 'package:life_line_rescuer/providers/app_router_provider.dart';
+import 'package:life_line_rescuer/styles/styles.dart';
 
 class CheckConnection extends ConsumerStatefulWidget {
   const CheckConnection({super.key});
+
   @override
   ConsumerState<CheckConnection> createState() => _CheckConnectionState();
 }
@@ -19,49 +21,66 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
     with WidgetsBindingObserver {
   FirebaseFirestore? _ngoFirestore;
 
+  // life-line-ngo database credentials
+  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
+    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
+    messagingSenderId: '169949190544',
+    projectId: 'life-line-ngo',
+    authDomain: 'life-line-ngo.firebaseapp.com',
+    storageBucket: 'life-line-ngo.firebasestorage.app',
+  );
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initNgoFirestore();
-    _updateOnlineStatus(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initNgoFirestore();
+      await _updateOnlineStatus(true);
+    });
   }
 
   @override
   void dispose() {
     _updateOnlineStatus(false);
-
     WidgetsBinding.instance.removeObserver(this);
-
     super.dispose();
   }
 
   Future<void> _initNgoFirestore() async {
     try {
-      final ngoApp = Firebase.app('life-line-ngo');
+      FirebaseApp ngoApp;
+      try {
+        ngoApp = Firebase.app('life-line-ngo');
+      } catch (_) {
+        ngoApp = await Firebase.initializeApp(
+          name: 'life-line-ngo',
+          options: _ngoFirebaseOptions,
+        );
+      }
+
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
-    } catch (_) {}
+    } catch (e) {
+      // Ignore Firestore initialization errors.
+    }
   }
 
   Future<void> _updateOnlineStatus(bool online) async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) return;
 
     try {
-      // Update in life-line-rescuer database
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'online': online,
       }, SetOptions(merge: true));
 
-      // Initialize NGO database if needed
       if (_ngoFirestore == null) {
         await _initNgoFirestore();
       }
 
       if (_ngoFirestore == null) return;
 
-      // Get rescuer document from rescuer database
       final rescuerDoc =
           await FirebaseFirestore.instance
               .collection('users')
@@ -71,19 +90,19 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
       if (!rescuerDoc.exists) return;
 
       final data = rescuerDoc.data();
-
       final ngoId = data?['ngoId'];
 
       if (ngoId == null) return;
 
-      // Update same online status in NGO database
       await _ngoFirestore!
           .collection('ngo-info-database')
           .doc(ngoId)
           .collection('rescuer-requests')
           .doc(user.uid)
           .set({'online': online}, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (_) {
+      // Ignore Firestore update errors.
+    }
   }
 
   @override
@@ -99,46 +118,31 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
 
   @override
   Widget build(BuildContext context) {
-    if (!context.mounted) return const SizedBox.shrink();
+    final route = ref.watch(appRouterProvider);
 
-    final authState = ref.watch(authStateProvider);
+    switch (route) {
+      case AppRoute.loading:
+        return _loadingScreen();
+      case AppRoute.offline:
+        return const OfflineConnectivity();
+      case AppRoute.login:
+        return const RescuerOnboarding();
+      case AppRoute.blocked:
+        final user = FirebaseAuth.instance.currentUser;
+        return RescuerBlockedDialog(email: user?.email ?? '');
+      case AppRoute.home:
+        return const LandingPage();
+    }
+  }
 
-    return authState.when(
-      data: (user) {
-        if (user == null) {
-          return const RescuerOnboarding();
-        }
-        if (!context.mounted) return const SizedBox.shrink();
-        final accessState = ref.watch(rescuerAccessProvider);
-
-        return accessState.when(
-          data: (access) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final navigator = Navigator.of(context, rootNavigator: true);
-
-              while (navigator.canPop()) {
-                navigator.pop();
-              }
-            });
-            if (access.blocked) {
-              return RescuerBlockedDialog(
-                firstName: access.firstName,
-                lastName: access.lastName,
-              );
-            }
-
-            if (access.approved) {
-              return const LandingPage();
-            }
-
-            return const RescuerOnboarding();
-          },
-          loading: () => const RescuerOnboarding(),
-          error: (_, _) => const RescuerOnboarding(),
-        );
-      },
-      loading: () => const RescuerOnboarding(),
-      error: (_, _) => const RescuerOnboarding(),
+  Widget _loadingScreen() {
+    return Scaffold(
+      body: Container(
+        decoration: AppContainers.pageContainer,
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryMaroon),
+        ),
+      ),
     );
   }
 }
