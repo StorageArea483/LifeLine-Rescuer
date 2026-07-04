@@ -370,6 +370,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         child: Center(
           child: SizedBox(
             width: ResponsiveHelper.contentWidth(context),
+            height: double.infinity,
             child: Stack(
               children: [
                 Positioned.fill(
