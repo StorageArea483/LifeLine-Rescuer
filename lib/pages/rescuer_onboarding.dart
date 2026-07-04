@@ -26,16 +26,6 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  // life-line-ngo database credentials
-  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
-    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
-    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
-    messagingSenderId: '169949190544',
-    projectId: 'life-line-ngo',
-    authDomain: 'life-line-ngo.firebaseapp.com',
-    storageBucket: 'life-line-ngo.firebasestorage.app',
-  );
-
   @override
   void initState() {
     super.initState();
@@ -62,10 +52,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       try {
         ngoApp = Firebase.app('life-line-ngo');
       } catch (_) {
-        ngoApp = await Firebase.initializeApp(
-          name: 'life-line-ngo',
-          options: _ngoFirebaseOptions,
-        );
+        rethrow;
       }
 
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);

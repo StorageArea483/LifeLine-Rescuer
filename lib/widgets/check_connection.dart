@@ -8,7 +8,9 @@ import 'package:life_line_rescuer/pages/offline_connectivity.dart';
 import 'package:life_line_rescuer/pages/rescuer_blocked.dart';
 import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
 import 'package:life_line_rescuer/providers/app_router_provider.dart';
+import 'package:life_line_rescuer/providers/check_connection_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
+import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 
 class CheckConnection extends ConsumerStatefulWidget {
   const CheckConnection({super.key});
@@ -35,9 +37,9 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _initNgoFirestore();
-      await _updateOnlineStatus(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initNgoFirestore();
+      _updateOnlineStatus(true);
     });
   }
 
@@ -49,6 +51,10 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
   }
 
   Future<void> _initNgoFirestore() async {
+    if (mounted) {
+      ref.read(checkConnectionProvider.notifier).state = true;
+    }
+
     try {
       FirebaseApp ngoApp;
       try {
@@ -63,6 +69,10 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
     } catch (e) {
       // Ignore Firestore initialization errors.
+    } finally {
+      if (mounted) {
+        ref.read(checkConnectionProvider.notifier).state = false;
+      }
     }
   }
 
@@ -71,9 +81,9 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
     if (user == null) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'online': online,
-      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {'online': online},
+      );
 
       if (_ngoFirestore == null) {
         await _initNgoFirestore();
@@ -99,7 +109,7 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
           .doc(ngoId)
           .collection('rescuer-requests')
           .doc(user.uid)
-          .set({'online': online}, SetOptions(merge: true));
+          .update({'online': online});
     } catch (_) {
       // Ignore Firestore update errors.
     }
@@ -120,6 +130,28 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
   Widget build(BuildContext context) {
     final route = ref.watch(appRouterProvider);
 
+    return Stack(
+      children: [
+        // Main content based on route
+        _buildRouteWidget(route),
+
+        // Loading overlay
+        Consumer(
+          builder: (context, ref, child) {
+            final isInitializing = ref.watch(checkConnectionProvider);
+
+            if (!isInitializing) {
+              return const SizedBox.shrink();
+            }
+
+            return pageLoading(context);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRouteWidget(AppRoute route) {
     switch (route) {
       case AppRoute.loading:
         return _loadingScreen();

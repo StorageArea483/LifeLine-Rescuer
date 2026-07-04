@@ -13,14 +13,12 @@ import 'package:life_line_rescuer/providers/rescuer_map_provider.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import 'package:life_line_rescuer/services/location_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/fetch_lat_long.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
-
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
 class RescuerMapPage extends ConsumerStatefulWidget {
@@ -48,8 +46,12 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await getLocation();
-      await _startLocationTracking();
+      try {
+        await getLocation();
+        await _startLocationTracking();
+      } catch (e) {
+        // Handle errors silently
+      }
     });
   }
 
@@ -59,8 +61,15 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
     super.dispose();
   }
 
+  bool get _hasValidVictimLocation =>
+      widget.latitude != null &&
+      widget.longitude != null &&
+      !(widget.latitude == 0.0 && widget.longitude == 0.0);
+
   Future<void> _drawRoute(double rescuerLat, double rescuerLng) async {
-    if (widget.latitude == null || widget.longitude == null) return;
+    if (!_hasValidVictimLocation) {
+      return;
+    }
 
     try {
       final url = Uri.parse(
@@ -69,6 +78,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         '&start=$rescuerLng,$rescuerLat'
         '&end=${widget.longitude},${widget.latitude}',
       );
+
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -125,6 +135,11 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
           activityType: ActivityType.fitness,
           pauseLocationUpdatesAutomatically: true,
         );
+      } else {
+        locationSettings = const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        );
       }
 
       _locationSubscription = Geolocator.getPositionStream(
@@ -138,8 +153,9 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
               position.latitude,
               position.longitude,
             );
-            // ✅ Check if rescuer has reached the victim
-            if (widget.latitude != null && widget.longitude != null) {
+
+            // Check if rescuer has reached the victim
+            if (_hasValidVictimLocation) {
               final distance = Geolocator.distanceBetween(
                 position.latitude,
                 position.longitude,
@@ -155,7 +171,12 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
           }
         },
         onError: (e) {
-          // ignore error
+          pageMessage(
+            'An unexpected error occurred, Please try again',
+            context,
+            AppColors.error,
+          );
+          pageNavigation(const LandingPage(), context);
         },
       );
     } catch (e) {
@@ -196,7 +217,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
     if (!mounted) return;
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder:
           (dialogContext) => StatefulBuilder(
             builder:
@@ -260,22 +281,10 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
                                     () => _isMarkingArrived = false,
                                   );
                                 },
-                        child:
-                            _isMarkingArrived
-                                ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                                : const Text(
-                                  'Okay',
-                                  style: AppText.submitButton,
-                                ),
+                        child: const Text(
+                          'Confirm',
+                          style: AppText.submitButton,
+                        ),
                       ),
                     ),
                   ],
@@ -328,6 +337,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         pageMessage(fetchedResult.error!, context, AppColors.error);
         return;
       }
+
       _mapController.move(
         LatLng(fetchedResult.latitude, fetchedResult.longitude),
         15,
@@ -372,166 +382,187 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
                       borderRadius: BorderRadius.circular(
                         ResponsiveHelper.isTablet(context) ? 24 : 16,
                       ),
-                      child: FlutterMap(
-                        mapController: _mapController,
-                        options: const MapOptions(
-                          initialCenter: LatLng(34.1463, 73.2117),
-                          initialZoom: 15,
-                          minZoom: 1,
-                          maxZoom: 18,
-                          interactionOptions: InteractionOptions(
-                            flags:
-                                InteractiveFlag.pinchZoom |
-                                InteractiveFlag.drag |
-                                InteractiveFlag.doubleTapZoom,
-                          ),
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.lifeline.app',
-                          ),
-                          // If a victim location is provided, show a red marker
-                          if (widget.latitude != null &&
-                              widget.longitude != null)
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(
-                                    widget.latitude!,
-                                    widget.longitude!,
-                                  ),
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.location_on,
-                                    color: Colors.red,
-                                    size: 32,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          Consumer(
-                            builder: (context, ref, child) {
-                              if (!mounted) return const SizedBox.shrink();
-                              final routePoints = ref.watch(
-                                routePointsProvider,
-                              );
-                              if (routePoints.isNotEmpty) {
-                                return PolylineLayer(
-                                  polylines: [
-                                    Polyline(
-                                      points: routePoints,
-                                      strokeWidth: 4.0,
-                                      color: Colors.red,
-                                    ),
-                                  ],
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                          const CurrentLocationLayer(
-                            style: LocationMarkerStyle(
-                              marker: DefaultLocationMarker(
-                                color: AppColors.primaryMaroon,
-                              ),
-                              markerSize: Size(20, 20),
-                              markerDirection: MarkerDirection.heading,
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: _buildFlutterMap(),
                     ),
                   ),
                 ),
-                Consumer(
-                  builder: (context, ref, child) {
-                    if (!mounted) return const SizedBox.shrink();
-                    final distance = ref.watch(
-                      rescuerMapProvider.select((state) => state.distance),
-                    );
-                    if (!mounted) return const SizedBox.shrink();
-                    final duration = ref.watch(
-                      rescuerMapProvider.select((state) => state.duration),
-                    );
-
-                    if (distance.isEmpty && duration.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return Positioned(
-                      top: ResponsiveHelper.isTablet(context) ? 32 : 16,
-                      left: ResponsiveHelper.isTablet(context) ? 32 : 16,
-                      right: ResponsiveHelper.isTablet(context) ? 32 : 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.route,
-                                  color: AppColors.primaryMaroon,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  distance,
-                                  style: AppText.small.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              width: 1,
-                              height: 20,
-                              color: AppColors.borderColor,
-                            ),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  color: AppColors.primaryMaroon,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  duration,
-                                  style: AppText.small.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                _buildRouteInfoOverlay(),
               ],
             ),
           ),
         ),
       ),
       bottomNavigationBar: const BottomNavbar(currentIndex: 1),
+    );
+  }
+
+  Widget _buildFlutterMap() {
+    try {
+      return FlutterMap(
+        mapController: _mapController,
+        options: const MapOptions(
+          initialCenter: LatLng(34.1463, 73.2117),
+          initialZoom: 15,
+          minZoom: 1,
+          maxZoom: 18,
+          interactionOptions: InteractionOptions(
+            flags:
+                InteractiveFlag.pinchZoom |
+                InteractiveFlag.drag |
+                InteractiveFlag.doubleTapZoom,
+          ),
+        ),
+        children: [
+          _buildTileLayer(),
+          _buildVictimMarker(),
+          _buildRoutePolyline(),
+          _buildCurrentLocationLayer(),
+        ],
+      );
+    } catch (e) {
+      return Container(
+        color: Colors.red.withOpacity(0.3),
+        child: Center(child: Text('Map Error: $e')),
+      );
+    }
+  }
+
+  Widget _buildTileLayer() {
+    return TileLayer(
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      userAgentPackageName: 'com.lifeline.app',
+    );
+  }
+
+  Widget _buildVictimMarker() {
+    if (_hasValidVictimLocation) {
+      return MarkerLayer(
+        markers: [
+          Marker(
+            point: LatLng(widget.latitude!, widget.longitude!),
+            width: 40,
+            height: 40,
+            child: const Icon(Icons.location_on, color: Colors.red, size: 32),
+          ),
+        ],
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildRoutePolyline() {
+    return Consumer(
+      builder: (context, ref, child) {
+        if (!mounted) {
+          return const SizedBox.shrink();
+        }
+
+        final routePoints = ref.watch(routePointsProvider);
+
+        if (_hasValidVictimLocation && routePoints.isNotEmpty) {
+          return PolylineLayer(
+            polylines: [
+              Polyline(
+                points: routePoints,
+                strokeWidth: 4.0,
+                color: Colors.red,
+              ),
+            ],
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildCurrentLocationLayer() {
+    return const CurrentLocationLayer(
+      style: LocationMarkerStyle(
+        marker: DefaultLocationMarker(color: AppColors.primaryMaroon),
+        markerSize: Size(20, 20),
+        markerDirection: MarkerDirection.heading,
+      ),
+    );
+  }
+
+  Widget _buildRouteInfoOverlay() {
+    return Consumer(
+      builder: (context, ref, child) {
+        if (!mounted) {
+          return const SizedBox.shrink();
+        }
+
+        final distance = ref.watch(
+          rescuerMapProvider.select((state) => state.distance),
+        );
+        final duration = ref.watch(
+          rescuerMapProvider.select((state) => state.duration),
+        );
+
+        if (distance.isEmpty && duration.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Positioned(
+          top: ResponsiveHelper.isTablet(context) ? 32 : 16,
+          left: ResponsiveHelper.isTablet(context) ? 32 : 16,
+          right: ResponsiveHelper.isTablet(context) ? 32 : 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.route,
+                      color: AppColors.primaryMaroon,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      distance,
+                      style: AppText.small.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(width: 1, height: 20, color: AppColors.borderColor),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      color: AppColors.primaryMaroon,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      duration,
+                      style: AppText.small.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

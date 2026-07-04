@@ -53,7 +53,7 @@ class GoogleSignInService {
             'email': user.email ?? '',
             'photoURL': user.photoURL,
             'provider': 'google',
-          });
+          }, SetOptions(merge: true));
         }
       }
       return userCredential;
