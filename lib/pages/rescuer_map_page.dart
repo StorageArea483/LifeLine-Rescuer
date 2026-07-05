@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -13,13 +15,13 @@ import 'package:life_line_rescuer/providers/rescuer_map_provider.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:life_line_rescuer/services/location_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/fetch_lat_long.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'dart:io' show Platform;
 
 class RescuerMapPage extends ConsumerStatefulWidget {
   final double? latitude;
@@ -41,12 +43,32 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
   late LocationSettings locationSettings;
   StreamSubscription<Position>? _locationSubscription;
   bool _isMarkingArrived = false;
+  FirebaseFirestore? victimFirestore;
+
+  // life-line-victim database credentials
+  static const FirebaseOptions _victimAndroidOptions = FirebaseOptions(
+    apiKey: 'AIzaSyByihQ3YBdrJUrAAxFSX3257fUMa0AJ6uo',
+    appId: '1:503939690280:android:aff06bb9fb777faf792a1d',
+    messagingSenderId: '503939690280',
+    projectId: 'project-life-line',
+    storageBucket: 'project-life-line.firebasestorage.app',
+  );
+
+  static const FirebaseOptions _victimIosOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBDX51z8C6yiZnbEHgHK70UxnRZcn5oSd0',
+    appId: '1:503939690280:ios:ed2fb1d85f841609792a1d',
+    messagingSenderId: '503939690280',
+    projectId: 'project-life-line',
+    storageBucket: 'project-life-line.firebasestorage.app',
+    iosBundleId: 'com.example.lifeLine',
+  );
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        _initSecondaryFirebase();
         await getLocation();
         await _startLocationTracking();
       } catch (e) {
@@ -65,6 +87,22 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
       widget.latitude != null &&
       widget.longitude != null &&
       !(widget.latitude == 0.0 && widget.longitude == 0.0);
+
+  Future<void> _initSecondaryFirebase() async {
+    FirebaseApp victimApp;
+    try {
+      victimApp = await Firebase.initializeApp(
+        name: 'life-line-victim',
+        options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
+      );
+    } catch (_) {
+      victimApp = await Firebase.initializeApp(
+        name: 'life-line-victim',
+        options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
+      );
+    }
+    victimFirestore = FirebaseFirestore.instanceFor(app: victimApp);
+  }
 
   Future<void> _drawRoute(double rescuerLat, double rescuerLng) async {
     if (!_hasValidVictimLocation) {
@@ -189,30 +227,6 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
     }
   }
 
-  Future<void> _markRescuerArrived() async {
-    if (widget.victimUid == null) return;
-    try {
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.victimUid)
-              .get();
-      if (userDoc.exists) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.victimUid)
-            .set({'rescuerArrived': true}, SetOptions(merge: true));
-      }
-    } catch (e) {
-      pageMessage(
-        'An unexpected error occurred, Please retry',
-        context,
-        AppColors.error,
-      );
-      pageNavigation(const LandingPage(), context);
-    }
-  }
-
   void _showArrivedDialog() {
     if (!mounted) return;
     showDialog(
@@ -247,7 +261,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Victim Reached',
+                        'Rescuer Reached',
                         textAlign: TextAlign.center,
                         style: AppText.formTitle,
                       ),
@@ -273,7 +287,6 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
                                   setDialogState(
                                     () => _isMarkingArrived = true,
                                   );
-                                  await _markRescuerArrived();
                                   if (dialogContext.mounted) {
                                     Navigator.of(dialogContext).pop();
                                   }
@@ -313,11 +326,29 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         ].where((e) => e != null && e.isNotEmpty).join(', ');
 
         if (address.isNotEmpty) {
-          await LocationService.updateUserLocation(
-            address,
-            latitude,
-            longitude,
-          );
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return;
+
+          final Map<String, dynamic> locationData = {
+            'location': address,
+            'latitude': latitude,
+            'longitude': longitude,
+          };
+
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set(locationData, SetOptions(merge: true));
+
+          if (widget.victimUid != null && victimFirestore != null) {
+            await victimFirestore!
+                .collection('users')
+                .doc(widget.victimUid)
+                .set({
+                  'rescuerLatitude': latitude,
+                  'rescuerLongitude': longitude,
+                }, SetOptions(merge: true));
+          }
         }
       }
     } catch (e) {
@@ -346,11 +377,24 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
       await _drawRoute(fetchedResult.latitude, fetchedResult.longitude);
 
       if (fetchedResult.address != null && fetchedResult.address!.isNotEmpty) {
-        await LocationService.updateUserLocation(
-          fetchedResult.address,
-          fetchedResult.latitude,
-          fetchedResult.longitude,
-        );
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
+        final Map<String, dynamic> locationData = {
+          'location': fetchedResult.address,
+          'latitude': fetchedResult.latitude,
+          'longitude': fetchedResult.longitude,
+        };
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set(locationData, SetOptions(merge: true));
+
+        if (widget.victimUid != null && victimFirestore != null) {
+          await victimFirestore!.collection('users').doc(widget.victimUid).set({
+            'rescuerLatitude': fetchedResult.latitude,
+            'rescuerLongitude': fetchedResult.longitude,
+          }, SetOptions(merge: true));
+        }
       }
     } catch (e) {
       pageMessage(
