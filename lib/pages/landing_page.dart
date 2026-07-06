@@ -20,12 +20,6 @@ class LandingPage extends ConsumerStatefulWidget {
 }
 
 class _LandingPageState extends ConsumerState<LandingPage> {
-  final List<Map<String, dynamic>> recentRequests = [
-    {"name": "Ahmed Khan", "type": "Medical Emergency", "severity": "HIGH"},
-    {"name": "Fatima Ali", "type": "Flood Rescue", "severity": "MEDIUM"},
-    {"name": "Bilal Ahmed", "type": "Earthquake", "severity": "CRITICAL"},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -149,8 +143,6 @@ class _LandingPageState extends ConsumerState<LandingPage> {
 
                         _buildQuickActions(),
                         const SizedBox(height: AppSpacing.xxl),
-
-                        _buildRecentRequests(),
                       ],
                     ),
                   ),
@@ -183,37 +175,63 @@ class _LandingPageState extends ConsumerState<LandingPage> {
     );
 
     final activeRequests = dashboardData['activeRequests'] ?? 0;
-
     final highPriority = dashboardData['highPriority'] ?? 0;
-
     final assignments = dashboardData['assignments'] ?? 0;
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.2,
+
+    // Only show stats if there's actual data
+    final hasData = activeRequests > 0 || highPriority > 0 || assignments > 0;
+
+    if (!hasData) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderColor),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 48,
+              color: AppColors.textSecondary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No active missions yet',
+              style: AppText.fieldLabel.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'You\'ll see your statistics here once you start',
+              textAlign: TextAlign.center,
+              style: AppText.small.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
       children: [
         _StatCard(title: 'Active Requests', value: activeRequests.toString()),
-
+        const SizedBox(height: 12),
         _StatCard(title: 'High Priority', value: highPriority.toString()),
-
-        const _StatCard(title: 'Rescued Today', value: '8'),
-
+        const SizedBox(height: 12),
         _StatCard(title: 'Assignments', value: assignments.toString()),
       ],
     );
   }
 
   Widget _buildQuickActions() {
+    // Only functional actions with actual implementations
     final actions = [
       {'title': 'Missions', 'icon': Icons.assignment_turned_in},
       {'title': 'Requests', 'icon': Icons.pending_actions},
-      {'title': 'History', 'icon': Icons.history},
       {'title': 'Guide', 'icon': Icons.menu_book},
-      {'title': 'Success', 'icon': Icons.reviews},
-      {'title': 'Reports', 'icon': Icons.summarize},
     ];
 
     return Column(
@@ -279,9 +297,7 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                             AppColors.error,
                           );
                         }
-                        return;
                       } else if (action['title'] == 'Missions') {
-                        // Navigate to Missions page
                         if (mounted) {
                           MissionsCardSheet.show(
                             context,
@@ -289,20 +305,20 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                           );
                         }
                       } else if (action['title'] == 'Requests') {
-                        // Navigate to Requests sheet
                         if (mounted) {
-                          final active = dashboardRequests['activeRequests'] ?? 0;
-                          final ids = (dashboardRequests['assignmentIds'] as List<dynamic>?)?.cast<String>() ?? [];
-                          // Avoid importing at top; use local import
-                          // Show requests sheet
-                          RequestsCardSheet.show(context, activeRequests: active, assignmentIds: ids);
+                          final active =
+                              dashboardRequests['activeRequests'] ?? 0;
+                          final ids =
+                              (dashboardRequests['assignmentIds']
+                                      as List<dynamic>?)
+                                  ?.cast<String>() ??
+                              [];
+                          RequestsCardSheet.show(
+                            context,
+                            activeRequests: active,
+                            assignmentIds: ids,
+                          );
                         }
-                      } else if (action['title'] == 'History') {
-                        // Navigate to History page
-                      } else if (action['title'] == 'Success') {
-                        // Navigate to Success Stories page
-                      } else if (action['title'] == 'Reports') {
-                        // Navigate to Reports page
                       }
                     },
                     child: Column(
@@ -326,85 +342,6 @@ class _LandingPageState extends ConsumerState<LandingPage> {
       ],
     );
   }
-
-  Widget _buildRecentRequests() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Recent Emergency Requests', style: AppText.fieldLabel),
-        const SizedBox(height: AppSpacing.lg),
-
-        ...recentRequests.map(
-          (request) => Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderColor),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.shadowLight,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  backgroundColor: AppColors.primaryMaroon,
-                  child: Icon(Icons.person, color: AppColors.surfaceLight),
-                ),
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(request['name'], style: AppText.fieldLabel),
-                      Text(
-                        request['type'],
-                        style: AppText.small.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.borderColor),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: AppColors.shadowLight,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    request['severity'],
-                    style: AppText.small.copyWith(
-                      color: AppColors.primaryMaroon,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _StatCard extends StatelessWidget {
@@ -416,7 +353,8 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
@@ -429,19 +367,21 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              value,
-              style: AppText.formTitle.copyWith(fontWeight: FontWeight.bold),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: AppText.fieldLabel.copyWith(fontWeight: FontWeight.w600),
+          ),
+          Text(
+            value,
+            style: AppText.formTitle.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryMaroon,
             ),
-            const SizedBox(height: 2),
-            Text(title, textAlign: TextAlign.center, style: AppText.small),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

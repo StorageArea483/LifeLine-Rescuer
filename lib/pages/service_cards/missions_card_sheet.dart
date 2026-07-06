@@ -484,7 +484,7 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
         children: [
           Icon(
             icon,
-            size: ResponsiveHelper.isTablet(context) ? 24 : 18,
+            size: ResponsiveHelper.isTablet(context) ? 24 : 22,
             color: AppColors.textSecondary,
           ),
           SizedBox(width: ResponsiveHelper.isTablet(context) ? 12 : 8),

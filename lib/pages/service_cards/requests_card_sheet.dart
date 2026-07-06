@@ -10,6 +10,7 @@ import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' show Platform;
 
 class RequestsCardSheet {
@@ -47,6 +48,7 @@ class RequestSheet extends ConsumerStatefulWidget {
 
 class _RequestSheetState extends ConsumerState<RequestSheet> {
   FirebaseFirestore? _victimFirestore;
+  FirebaseFirestore? ngoFirestore;
 
   // life-line-victim database credentials
   static const FirebaseOptions _victimAndroidOptions = FirebaseOptions(
@@ -66,6 +68,15 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
     iosBundleId: 'com.example.lifeLine',
   );
 
+  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
+    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
+    messagingSenderId: '169949190544',
+    projectId: 'life-line-ngo',
+    authDomain: 'life-line-ngo.firebaseapp.com',
+    storageBucket: 'life-line-ngo.firebasestorage.app',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +92,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
       ref.read(globalPageProvider.notifier).setIsLoading(true);
 
       FirebaseApp victimApp;
+      FirebaseApp ngoApp;
       // Victim Firebase
       try {
         victimApp = await Firebase.initializeApp(
@@ -95,6 +107,18 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
       }
 
       _victimFirestore = FirebaseFirestore.instanceFor(app: victimApp);
+
+      // NGO Firebase
+      try {
+        ngoApp = Firebase.app('life-line-ngo');
+      } catch (_) {
+        ngoApp = await Firebase.initializeApp(
+          name: 'life-line-ngo',
+          options: _ngoFirebaseOptions,
+        );
+      }
+
+      ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
       await fetchPendingRequests();
 
@@ -146,7 +170,11 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
     }
   }
 
-  Future<void> updateRequestStatus(String uid, String newStatus) async {
+  Future<void> updateRequestStatus(
+    String uid,
+    String newStatus,
+    bool? isAssigned,
+  ) async {
     if (_victimFirestore == null) return;
     if (!mounted) return;
 
@@ -155,6 +183,30 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
       await _victimFirestore!.collection('users').doc(uid).set({
         'requestAccepted': newStatus,
       }, SetOptions(merge: true));
+      await ngoFirestore!.collection('requests').doc(uid).set({
+        'assigned': isAssigned,
+      }, SetOptions(merge: true));
+
+      if (isAssigned != null && isAssigned == false) {
+        final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUserUid != null) {
+          final rescuerFirestore = FirebaseFirestore.instance;
+          final rescuerDocRef = rescuerFirestore
+              .collection('users')
+              .doc(currentUserUid);
+          final rescuerDoc = await rescuerDocRef.get();
+
+          if (rescuerDoc.exists) {
+            final currentRequests = rescuerDoc.data()?['requests'] ?? 0;
+            if (currentRequests != 0) {
+              await rescuerDocRef.update({
+                'requests': FieldValue.increment(-1),
+              });
+            }
+          }
+        }
+      }
+
       // Refresh the pending list after update
       await fetchPendingRequests();
     } catch (e) {
@@ -367,7 +419,11 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       if (victim['uid'] != null) {
-                        await updateRequestStatus(victim['uid'], 'accepted');
+                        await updateRequestStatus(
+                          victim['uid'],
+                          'accepted',
+                          null,
+                        );
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -391,7 +447,11 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                   child: OutlinedButton.icon(
                     onPressed: () async {
                       if (victim['uid'] != null) {
-                        await updateRequestStatus(victim['uid'], 'rejected');
+                        await updateRequestStatus(
+                          victim['uid'],
+                          'rejected',
+                          false,
+                        );
                       }
                     },
                     style: OutlinedButton.styleFrom(

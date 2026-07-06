@@ -26,6 +26,15 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
 
+  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
+    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
+    messagingSenderId: '169949190544',
+    projectId: 'life-line-ngo',
+    authDomain: 'life-line-ngo.firebaseapp.com',
+    storageBucket: 'life-line-ngo.firebasestorage.app',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +52,9 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   }
 
   Future<void> _initSecondaryFirebase() async {
+    // If already initialized, skip
+    if (_ngoFirestore != null) return;
+
     if (mounted) {
       ref.read(rescueOnboardingProvider.notifier).setLoading(true);
     }
@@ -51,8 +63,15 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
       FirebaseApp ngoApp;
       try {
         ngoApp = Firebase.app('life-line-ngo');
-      } catch (_) {
-        rethrow;
+      } catch (e) {
+        try {
+          ngoApp = await Firebase.initializeApp(
+            name: 'life-line-ngo',
+            options: _ngoFirebaseOptions,
+          );
+        } catch (initError) {
+          ngoApp = Firebase.app('life-line-ngo');
+        }
       }
 
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
@@ -76,12 +95,27 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   }
 
   Future<void> _fetchNgosByService(String service) async {
-    if (_ngoFirestore == null) return;
-
     if (mounted) {
       ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(true);
       // Clear previous results so stale data does not show.
       ref.read(rescueOnboardingProvider.notifier).setApprovedNgos([]);
+    }
+
+    // Wait for Firebase to initialize if not ready yet
+    if (_ngoFirestore == null) {
+      await _initSecondaryFirebase();
+      // If still null after initialization, show error and return
+      if (_ngoFirestore == null) {
+        if (mounted) {
+          ref.read(rescueOnboardingProvider.notifier).setIsNgoLoading(false);
+          pageMessage(
+            'Failed to initialize Firebase. Please try again.',
+            context,
+            AppColors.error,
+          );
+        }
+        return;
+      }
     }
 
     try {
