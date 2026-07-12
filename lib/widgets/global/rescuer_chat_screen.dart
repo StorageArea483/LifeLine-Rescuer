@@ -120,6 +120,7 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
 
       _subscribeToMessages(chatId);
       _subscribeToPresence();
+      await _fetchVictimReport();
 
       if (mounted) {
         ref.read(rescuerChatLoadingProvider.notifier).state = false;
@@ -201,6 +202,83 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
         );
       }
     }
+  }
+
+  Future<void> _fetchVictimReport() async {
+    if (victimFirestore == null) return;
+
+    try {
+      final reportDoc =
+          await victimFirestore!
+              .collection('victim-report')
+              .doc(widget.victimId)
+              .get();
+
+      if (!mounted) return;
+
+      if (reportDoc.exists) {
+        final data = reportDoc.data() ?? {};
+        ref.read(victimReportProvider(widget.victimId).notifier).state = data;
+
+        // Show the report sheet
+        _showVictimReportSheet(data);
+      }
+    } catch (e) {
+      if (mounted) {
+        pageMessage('Unable to load victim report.', context, AppColors.error);
+      }
+    }
+  }
+
+  void _showVictimReportSheet(Map<String, dynamic> report) {
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final entries = report.entries.toList();
+
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            itemCount: entries.length,
+            separatorBuilder:
+                (_, _) =>
+                    const Divider(height: 24, color: AppColors.borderColor),
+            itemBuilder: (context, index) {
+              final key = entries[index].key;
+              final value = entries[index].value;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    key,
+                    style: AppText.small.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$value',
+                    style: AppText.fieldLabel.copyWith(
+                      fontSize: 15,
+                      color: AppColors.darkCharcoal,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _sendMessage() async {

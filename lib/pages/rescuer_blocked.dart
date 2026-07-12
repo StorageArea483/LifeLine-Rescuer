@@ -73,7 +73,7 @@ class RescuerBlockedDialog extends StatelessWidget {
                   child: ElevatedButton(
                     style: AppButtons.submit,
                     onPressed: () async {
-                      _handleLogout(context);
+                      await _handleLogout(context);
                     },
                     child: const Text('Sign Out', style: AppText.submitButton),
                   ),

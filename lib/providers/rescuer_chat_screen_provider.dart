@@ -16,3 +16,8 @@ final rescuerChatMessagesProvider =
 final victimOnlineStatusProvider = StateProvider.family<bool, String>(
   (ref, victimId) => false,
 );
+
+final victimReportProvider =
+    StateProvider.family<Map<String, dynamic>?, String>(
+      (ref, victimId) => null,
+    );

@@ -102,6 +102,29 @@ class _LandingPageState extends ConsumerState<LandingPage> {
     }
   }
 
+  Future<void> _handleLogout(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Delete user document from Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
+      }
+
+      pageNavigation(const RescuerOnboarding(), context);
+    } catch (e) {
+      if (context.mounted) {
+        pageMessage(
+          'Failed to logout. Please try again.',
+          context,
+          AppColors.error,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,7 +141,7 @@ class _LandingPageState extends ConsumerState<LandingPage> {
               color: AppColors.textSecondary,
             ),
             onPressed: () async {
-              pageNavigation(const RescuerOnboarding(), context);
+              await _handleLogout(context);
             },
           ),
         ],
