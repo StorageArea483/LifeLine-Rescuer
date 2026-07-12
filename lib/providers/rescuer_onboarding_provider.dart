@@ -89,9 +89,10 @@ class RescuePageState {
       isLoading: isLoading ?? this.isLoading,
       approvedNgos: approvedNgos ?? this.approvedNgos,
       selectedNgo: selectedNgo ?? this.selectedNgo,
-      selectedService: selectedService == _sentinel
-          ? this.selectedService
-          : selectedService as String?,
+      selectedService:
+          selectedService == _sentinel
+              ? this.selectedService
+              : selectedService as String?,
       isNgoLoading: isNgoLoading ?? this.isNgoLoading,
       isDropdownExpanded: isDropdownExpanded ?? this.isDropdownExpanded,
       isSubmitting: isSubmitting ?? this.isSubmitting,

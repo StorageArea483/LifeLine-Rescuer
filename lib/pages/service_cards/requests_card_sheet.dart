@@ -271,7 +271,11 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
               ),
             ),
           ),
-          _buildLoadingOverlay(),
+          Consumer(
+            builder: (context, ref, child) {
+              return _buildLoadingOverlay(ref);
+            },
+          ),
         ],
       ),
     );
@@ -316,7 +320,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
     );
   }
 
-  Widget _buildLoadingOverlay() {
+  Widget _buildLoadingOverlay(WidgetRef ref) {
     if (!context.mounted) return const SizedBox.shrink();
     final isLoading = ref.watch(globalPageProvider.select((v) => v.isLoading));
 

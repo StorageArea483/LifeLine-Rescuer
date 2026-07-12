@@ -224,7 +224,11 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
               ),
             ),
           ),
-          _buildLoadingOverlay(),
+          Consumer(
+            builder: (context, ref, child) {
+              return _buildLoadingOverlay(ref);
+            },
+          ),
         ],
       ),
     );
@@ -264,12 +268,16 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
       padding: EdgeInsets.all(ResponsiveHelper.isTablet(context) ? 32 : 16),
       itemCount: victims.length,
       itemBuilder: (context, index) {
-        return _buildMissionCard(victims[index], ref);
+        return Consumer(
+          builder: (context, ref, child) {
+            return _buildMissionCard(victims[index], ref);
+          },
+        );
       },
     );
   }
 
-  Widget _buildLoadingOverlay() {
+  Widget _buildLoadingOverlay(WidgetRef ref) {
     if (!context.mounted) return const SizedBox.shrink();
     final isLoading = ref.watch(globalPageProvider.select((v) => v.isLoading));
 

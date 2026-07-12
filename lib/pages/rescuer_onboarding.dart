@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_line_rescuer/pages/landing_page.dart';
-import 'package:life_line_rescuer/services/auth_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/providers/rescuer_onboarding_provider.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
@@ -213,6 +212,31 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     return null;
   }
 
+  Future<void> _handleLogout() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Delete user document from Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog
+      }
+    } catch (e) {
+      if (mounted) {
+        pageMessage(
+          'Failed to logout. Please try again.',
+          context,
+          AppColors.error,
+        );
+      }
+    }
+  }
+
   void _showPendingDialog(bool rejected) {
     showDialog(
       context: context,
@@ -261,13 +285,12 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
                       Padding(
                         padding: const EdgeInsets.only(top: 16.0),
                         child: ElevatedButton(
-                          onPressed: () async {
-                            await GoogleSignInService.signOut();
-                            if (mounted) {
-                              Navigator.of(context).pop();
-                            }
-                          },
-                          child: const Text('Logout'),
+                          onPressed: _handleLogout,
+                          style: AppButtons.submit,
+                          child: const Text(
+                            'Logout',
+                            style: AppText.submitButton,
+                          ),
                         ),
                       ),
                   ],
@@ -419,7 +442,11 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
               ),
             ),
           ),
-          _buildLoadingOverlay(),
+          Consumer(
+            builder: (context, ref, child) {
+              return _buildLoadingOverlay(ref);
+            },
+          ),
         ],
       ),
     );
@@ -624,7 +651,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
     );
   }
 
-  Widget _buildLoadingOverlay() {
+  Widget _buildLoadingOverlay(WidgetRef ref) {
     if (!mounted) return const SizedBox.shrink();
     final isLoading = ref.watch(
       rescueOnboardingProvider.select((v) => v.isLoading),

@@ -16,7 +16,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
-  @override  
+  @override
   void initState() {
     super.initState();
     _loadUserData();
@@ -93,7 +93,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(profileLoadingProvider);
-    final userData = ref.watch(userDataProvider);
+
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -204,14 +204,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                             ? 24
                                             : 16,
                                   ),
-                                  Text(
-                                    '${userData?['firstName'] ?? 'N/A'} ${userData?['lastName'] ?? ''}',
-                                    style: AppText.formTitle.copyWith(
-                                      fontSize: ResponsiveHelper.titleFont(
-                                        context,
-                                      ),
-                                    ),
-                                    textAlign: TextAlign.center,
+                                  Consumer(
+                                    builder: (context, ref, child) {
+                                      final userData = ref.watch(
+                                        userDataProvider,
+                                      );
+                                      return Text(
+                                        '${userData?['firstName'] ?? 'N/A'} ${userData?['lastName'] ?? ''}',
+                                        style: AppText.formTitle.copyWith(
+                                          fontSize: ResponsiveHelper.titleFont(
+                                            context,
+                                          ),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -241,68 +248,79 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   ),
                                 ],
                               ),
-                              child: Column(
-                                children: [
-                                  _buildInfoRow(
-                                    'Branch Name',
-                                    userData?['branchName'] ?? 'N/A',
-                                    Icons.business_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Email',
-                                    userData?['email'] ?? user?.email ?? 'N/A',
-                                    Icons.email_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'First Name',
-                                    userData?['firstName'] ?? 'N/A',
-                                    Icons.person_outline,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Last Name',
-                                    userData?['lastName'] ?? 'N/A',
-                                    Icons.person_outline,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Latitude',
-                                    _formatCoordinate(userData?['latitude']),
-                                    Icons.pin_drop_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Longitude',
-                                    _formatCoordinate(userData?['longitude']),
-                                    Icons.pin_drop_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Location',
-                                    userData?['location'] ?? 'N/A',
-                                    Icons.location_on_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Registered With',
-                                    userData?['ngoName'] ?? 'N/A',
-                                    Icons.local_hospital_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Phone',
-                                    userData?['phone'] ?? 'N/A',
-                                    Icons.phone_outlined,
-                                  ),
-                                  _buildDivider(),
-                                  _buildInfoRow(
-                                    'Serving Type',
-                                    userData?['selectedService'] ?? 'N/A',
-                                    Icons.medical_services_outlined,
-                                  ),
-                                ],
+                              child: Consumer(
+                                builder: (context, ref, child) {
+                                  final userData = ref.watch(userDataProvider);
+                                  return Column(
+                                    children: [
+                                      _buildInfoRow(
+                                        'Branch Name',
+                                        userData?['branchName'] ?? 'N/A',
+                                        Icons.business_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Email',
+                                        userData?['email'] ??
+                                            user?.email ??
+                                            'N/A',
+                                        Icons.email_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'First Name',
+                                        userData?['firstName'] ?? 'N/A',
+                                        Icons.person_outline,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Last Name',
+                                        userData?['lastName'] ?? 'N/A',
+                                        Icons.person_outline,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Latitude',
+                                        _formatCoordinate(
+                                          userData?['latitude'],
+                                        ),
+                                        Icons.pin_drop_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Longitude',
+                                        _formatCoordinate(
+                                          userData?['longitude'],
+                                        ),
+                                        Icons.pin_drop_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Location',
+                                        userData?['location'] ?? 'N/A',
+                                        Icons.location_on_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Registered With',
+                                        userData?['ngoName'] ?? 'N/A',
+                                        Icons.local_hospital_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Phone',
+                                        userData?['phone'] ?? 'N/A',
+                                        Icons.phone_outlined,
+                                      ),
+                                      _buildDivider(),
+                                      _buildInfoRow(
+                                        'Serving Type',
+                                        userData?['selectedService'] ?? 'N/A',
+                                        Icons.medical_services_outlined,
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                             SizedBox(

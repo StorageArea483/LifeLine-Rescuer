@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/pages/profile_page.dart';
+import 'package:life_line_rescuer/pages/rescuer_contact_page.dart';
 import 'package:life_line_rescuer/pages/rescuer_map_page.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
@@ -29,6 +30,7 @@ class BottomNavbar extends StatelessWidget {
             context,
           );
         } else if (index == 2 && context.mounted) {
+          pageNavigation(const RescuerContactPage(), context);
         } else if (index == 3 && context.mounted) {
           pageNavigation(const ProfilePage(), context);
         }
@@ -50,7 +52,7 @@ class BottomNavbar extends StatelessWidget {
           label: 'Map',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_outline),
+          icon: Icon(Icons.chat_outlined),
           activeIcon: Icon(Icons.chat_bubble),
           label: 'Chat',
         ),

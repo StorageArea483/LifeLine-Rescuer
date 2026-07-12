@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_line_rescuer/pages/landing_page.dart';
+import 'package:life_line_rescuer/pages/maintenance_page.dart';
 import 'package:life_line_rescuer/pages/offline_connectivity.dart';
 import 'package:life_line_rescuer/pages/rescuer_blocked.dart';
 import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
@@ -159,6 +160,8 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
         return const OfflineConnectivity();
       case AppRoute.login:
         return const RescuerOnboarding();
+      case AppRoute.maintenance:
+        return const MaintenancePage();
       case AppRoute.blocked:
         final user = FirebaseAuth.instance.currentUser;
         return RescuerBlockedDialog(email: user?.email ?? '');

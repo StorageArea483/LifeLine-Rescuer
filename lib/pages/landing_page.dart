@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
 import 'package:life_line_rescuer/providers/landing_page_provider.dart';
 import 'package:life_line_rescuer/services/appwrite_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
@@ -11,6 +12,7 @@ import 'package:life_line_rescuer/pages/service_cards/missions_card_sheet.dart';
 import 'package:life_line_rescuer/pages/service_cards/requests_card_sheet.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
+import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
 class LandingPage extends ConsumerStatefulWidget {
   const LandingPage({super.key});
@@ -112,10 +114,12 @@ class _LandingPageState extends ConsumerState<LandingPage> {
         actions: [
           IconButton(
             icon: const Icon(
-              Icons.notifications_active_outlined,
+              Icons.logout_rounded,
               color: AppColors.textSecondary,
             ),
-            onPressed: () {},
+            onPressed: () async {
+              pageNavigation(const RescuerOnboarding(), context);
+            },
           ),
         ],
       ),
@@ -150,14 +154,18 @@ class _LandingPageState extends ConsumerState<LandingPage> {
               ),
             ),
           ),
-          _buildLoadingOverlay(),
+          Consumer(
+            builder: (context, ref, child) {
+              return _buildLoadingOverlay(ref);
+            },
+          ),
         ],
       ),
       bottomNavigationBar: const BottomNavbar(currentIndex: 0),
     );
   }
 
-  Widget _buildLoadingOverlay() {
+  Widget _buildLoadingOverlay(WidgetRef ref) {
     if (!context.mounted) return const SizedBox.shrink();
     final isLoading = ref.watch(landingPageProvider.select((v) => v.isLoading));
 

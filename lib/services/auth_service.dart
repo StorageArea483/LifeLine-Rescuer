@@ -4,7 +4,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 // Google Sign-In Service Class
 class GoogleSignInService {
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static bool isInitialize = false;
   static Future<void> initSignIn() async {
@@ -57,16 +56,6 @@ class GoogleSignInService {
         }
       }
       return userCredential;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Sign out
-  static Future<void> signOut() async {
-    try {
-      await _googleSignIn.signOut();
-      await _auth.signOut();
     } catch (e) {
       rethrow;
     }
