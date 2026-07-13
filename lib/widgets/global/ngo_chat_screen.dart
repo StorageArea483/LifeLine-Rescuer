@@ -4,57 +4,41 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io' show Platform;
-
 import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/pages/rescuer_contact_page.dart';
-import 'package:life_line_rescuer/providers/rescuer_chat_screen_provider.dart';
+import 'package:life_line_rescuer/providers/ngo_chat_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
-class RescuerChatScreen extends ConsumerStatefulWidget {
-  final String victimId;
-  final String victimName;
-  final String photoUrl;
-  const RescuerChatScreen({
-    super.key,
-    required this.victimId,
-    required this.victimName,
-    required this.photoUrl,
-  });
+class NgoChatScreen extends ConsumerStatefulWidget {
+  final String ngoId;
+  final String ngoName;
+
+  const NgoChatScreen({super.key, required this.ngoId, required this.ngoName});
 
   @override
-  ConsumerState<ConsumerStatefulWidget> createState() =>
-      _RescuerChatScreenState();
+  ConsumerState<NgoChatScreen> createState() => _NgoChatScreenState();
 }
 
-class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
+class _NgoChatScreenState extends ConsumerState<NgoChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  FirebaseFirestore? victimFirestore;
+  FirebaseFirestore? ngoFirestore;
 
   StreamSubscription? _messageSubscription;
-  StreamSubscription? _presenceSubscription;
 
   String? currentUserId;
+  String? chatId;
 
-  // life-line-victim database credentials
-  static const FirebaseOptions _victimAndroidOptions = FirebaseOptions(
-    apiKey: 'AIzaSyByihQ3YBdrJUrAAxFSX3257fUMa0AJ6uo',
-    appId: '1:503939690280:android:aff06bb9fb777faf792a1d',
-    messagingSenderId: '503939690280',
-    projectId: 'project-life-line',
-    storageBucket: 'project-life-line.firebasestorage.app',
-  );
-
-  static const FirebaseOptions _victimIosOptions = FirebaseOptions(
-    apiKey: 'AIzaSyBDX51z8C6yiZnbEHgHK70UxnRZcn5oSd0',
-    appId: '1:503939690280:ios:ed2fb1d85f841609792a1d',
-    messagingSenderId: '503939690280',
-    projectId: 'project-life-line',
-    storageBucket: 'project-life-line.firebasestorage.app',
-    iosBundleId: 'com.example.lifeLine',
+  // life-line-ngo database credentials
+  static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
+    apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
+    appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
+    messagingSenderId: '169949190544',
+    projectId: 'life-line-ngo',
+    authDomain: 'life-line-ngo.firebaseapp.com',
+    storageBucket: 'life-line-ngo.firebasestorage.app',
   );
 
   @override
@@ -69,38 +53,35 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
   void dispose() {
     _messageController.dispose();
     _messageSubscription?.cancel();
-    _presenceSubscription?.cancel();
     super.dispose();
   }
 
   // Builds a deterministic chat id from the two participant ids
-  String _generateChatId(String userId, String victimId) {
-    final ids = [userId, victimId]..sort();
+  String _generateChatId(String userId, String ngoId) {
+    final ids = [userId, ngoId]..sort();
     return '${ids[0]}_${ids[1]}';
   }
 
   Future<void> _initializeChat() async {
     if (mounted) {
-      ref.read(rescuerChatLoadingProvider.notifier).state = true;
+      ref.read(ngoChatLoadingProvider.notifier).state = true;
     }
     try {
-      FirebaseApp rescuerApp;
-
-      // Victim Firebase
+      FirebaseApp ngoApp;
       try {
-        rescuerApp = Firebase.app('project-life-line');
+        ngoApp = Firebase.app('life-line-ngo');
       } catch (_) {
-        rescuerApp = await Firebase.initializeApp(
-          name: 'project-life-line',
-          options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
+        ngoApp = await Firebase.initializeApp(
+          name: 'life-line-ngo',
+          options: _ngoFirebaseOptions,
         );
       }
-      victimFirestore = FirebaseFirestore.instanceFor(app: rescuerApp);
+      ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) {
         if (mounted) {
-          ref.read(rescuerChatLoadingProvider.notifier).state = false;
+          ref.read(ngoChatLoadingProvider.notifier).state = false;
           pageMessage(
             'Unable to load chat. Please re-try.',
             context,
@@ -112,22 +93,19 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
       }
 
       currentUserId = userId;
-
-      final chatId = _generateChatId(userId, widget.victimId);
+      final chatId = _generateChatId(userId, widget.ngoId);
       if (mounted) {
-        ref.read(rescuerChatIdProvider.notifier).state = chatId;
+        ref.read(ngoChatIdProvider.notifier).state = chatId;
       }
 
       _subscribeToMessages(chatId);
-      _subscribeToPresence();
-      await _fetchVictimReport();
 
       if (mounted) {
-        ref.read(rescuerChatLoadingProvider.notifier).state = false;
+        ref.read(ngoChatLoadingProvider.notifier).state = false;
       }
     } catch (e) {
       if (mounted) {
-        ref.read(rescuerChatLoadingProvider.notifier).state = false;
+        ref.read(ngoChatLoadingProvider.notifier).state = false;
         pageMessage(
           'An unexpected error occurred. Please try again.',
           context,
@@ -139,16 +117,20 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
   }
 
   void _subscribeToMessages(String chatId) {
+    if (ngoFirestore == null) return;
+
     try {
       _messageSubscription?.cancel();
 
-      _messageSubscription = FirebaseFirestore.instance
+      _messageSubscription = ngoFirestore!
           .collection('chats')
           .doc(chatId)
           .collection('messages')
           .orderBy('createdAt', descending: true)
           .snapshots()
           .listen((snapshot) {
+            if (!mounted) return;
+
             final messages =
                 snapshot.docs.map((doc) {
                   final data = doc.data();
@@ -159,9 +141,8 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
                     'createdAt': data['createdAt'],
                   };
                 }).toList();
-            if (!mounted) return;
-            ref.read(rescuerChatMessagesProvider(chatId).notifier).state =
-                messages;
+
+            ref.read(ngoChatMessagesProvider(chatId).notifier).state = messages;
           });
     } catch (e) {
       if (mounted) {
@@ -174,118 +155,15 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
     }
   }
 
-  void _subscribeToPresence() {
-    if (victimFirestore == null) return;
-
-    try {
-      _presenceSubscription?.cancel();
-
-      _presenceSubscription = victimFirestore!
-          .collection('users')
-          .doc(widget.victimId)
-          .snapshots()
-          .listen((snapshot) {
-            if (!mounted) return;
-            final isOnline = snapshot.data()?['online'] ?? false;
-            ref
-                .read(victimOnlineStatusProvider(widget.victimId).notifier)
-                .state = isOnline;
-          });
-    } catch (e) {
-      if (mounted) {
-        pageMessage(
-          'Unable to check victim status, please retry',
-          context,
-          AppColors.error,
-        );
-      }
-    }
-  }
-
-  Future<void> _fetchVictimReport() async {
-    if (victimFirestore == null) return;
-
-    try {
-      final reportDoc =
-          await victimFirestore!
-              .collection('victim-report')
-              .doc(widget.victimId)
-              .get();
-
-      if (reportDoc.exists) {
-        final data = reportDoc.data() ?? {};
-        if (!mounted) return;
-        ref.read(victimReportProvider(widget.victimId).notifier).state = data;
-
-        // Show the report sheet
-        _showVictimReportSheet(data);
-      }
-    } catch (e) {
-      if (mounted) {
-        pageMessage('Unable to load victim report.', context, AppColors.error);
-      }
-    }
-  }
-
-  void _showVictimReportSheet(Map<String, dynamic> report) {
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surfaceLight,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        final entries = report.entries.toList();
-
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            itemCount: entries.length,
-            separatorBuilder:
-                (_, _) =>
-                    const Divider(height: 24, color: AppColors.borderColor),
-            itemBuilder: (context, index) {
-              final key = entries[index].key;
-              final value = entries[index].value;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    key,
-                    style: AppText.small.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$value',
-                    style: AppText.fieldLabel.copyWith(
-                      fontSize: 15,
-                      color: AppColors.darkCharcoal,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _sendMessage() async {
     try {
+      if (ngoFirestore == null) return;
+
       final text = _messageController.text.trim();
       if (text.isEmpty) return;
 
       final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (!mounted) return;
-      final currentChatId = ref.read(rescuerChatIdProvider);
+      final currentChatId = ref.read(ngoChatIdProvider);
 
       if (userId == null || currentChatId == null) {
         if (mounted) {
@@ -300,14 +178,14 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
 
       _messageController.clear();
 
-      await FirebaseFirestore.instance
+      await ngoFirestore!
           .collection('chats')
           .doc(currentChatId)
           .collection('messages')
           .add({
             'chatId': currentChatId,
             'senderId': userId,
-            'receiverId': widget.victimId,
+            'receiverId': widget.ngoId,
             'text': text,
             'status': 'sent',
             'createdAt': FieldValue.serverTimestamp(),
@@ -325,11 +203,10 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
 
   Future<void> _deleteMessage(String messageId) async {
     try {
-      if (!mounted) return;
-      final chatId = ref.read(rescuerChatIdProvider);
-      if (chatId == null) return;
+      final chatId = ref.read(ngoChatIdProvider);
+      if (ngoFirestore == null || chatId == null) return;
 
-      await FirebaseFirestore.instance
+      await ngoFirestore!
           .collection('chats')
           .doc(chatId)
           .collection('messages')
@@ -408,9 +285,6 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
   }
 
   Widget _buildHeader(BuildContext context, WidgetRef ref) {
-    final avatarSize = ResponsiveHelper.isTablet(context) ? 56.0 : 40.0;
-    final isOnline = ref.watch(victimOnlineStatusProvider(widget.victimId));
-
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: ResponsiveHelper.isTablet(context) ? 24 : 16,
@@ -433,73 +307,17 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
             onPressed:
                 () => pageNavigation(const RescuerContactPage(), context),
           ),
-          SizedBox(
-            width: avatarSize,
-            height: avatarSize,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                CircleAvatar(
-                  radius: avatarSize / 2,
-                  backgroundColor: AppColors.primaryMaroon.withOpacity(0.1),
-                  backgroundImage:
-                      widget.photoUrl.isNotEmpty
-                          ? NetworkImage(widget.photoUrl)
-                          : null,
-                  child:
-                      widget.photoUrl.isEmpty
-                          ? Icon(
-                            Icons.person,
-                            color: AppColors.primaryMaroon,
-                            size: avatarSize * 0.5,
-                          )
-                          : null,
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: avatarSize * 0.28,
-                    height: avatarSize * 0.28,
-                    decoration: BoxDecoration(
-                      color: isOnline ? AppColors.success : AppColors.error,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.surfaceLight,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildNgoLogo(widget.ngoName),
           SizedBox(width: ResponsiveHelper.isTablet(context) ? 16 : 12),
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.victimName,
-                  style: AppText.fieldLabel.copyWith(
-                    fontSize: ResponsiveHelper.isTablet(context) ? 18 : 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.darkCharcoal,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isOnline ? 'Online' : 'Offline',
-                  style: AppText.small.copyWith(
-                    color:
-                        isOnline ? AppColors.success : AppColors.textSecondary,
-                    fontSize: ResponsiveHelper.bodyFont(context),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+            child: Text(
+              widget.ngoName,
+              style: AppText.fieldLabel.copyWith(
+                fontSize: ResponsiveHelper.isTablet(context) ? 18 : 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.darkCharcoal,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -507,17 +325,52 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
     );
   }
 
-  Widget _buildMessagesList(BuildContext context, WidgetRef ref) {
-    final isLoading = ref.watch(rescuerChatLoadingProvider);
-    final chatId = ref.watch(rescuerChatIdProvider);
+  Widget _buildNgoLogo(String ngoName) {
+    return Container(
+      width: ResponsiveHelper.isTablet(context) ? 72 : 48,
+      height: ResponsiveHelper.isTablet(context) ? 72 : 48,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderColor, width: 1),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          'assets/offline_logos/$ngoName.webp',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: AppColors.primaryMaroon.withOpacity(0.1),
+              child: Icon(
+                Icons.business,
+                color: AppColors.primaryMaroon,
+                size: ResponsiveHelper.isTablet(context) ? 36 : 24,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-    if (isLoading || chatId == null) {
+  Widget _buildMessagesList(BuildContext context, WidgetRef ref) {
+    final isLoading = ref.watch(ngoChatLoadingProvider);
+    final chatId = ref.watch(ngoChatIdProvider);
+
+    if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primaryMaroon),
       );
     }
 
-    final messages = ref.watch(rescuerChatMessagesProvider(chatId));
+    if (chatId == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryMaroon),
+      );
+    }
+
+    final messages = ref.watch(ngoChatMessagesProvider(chatId));
 
     if (messages.isEmpty) {
       return Center(

@@ -72,21 +72,17 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
   }
 
   Future<void> _initSecondaryFirebase() async {
-    if (!mounted) return;
-
     try {
+      if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(true);
 
       FirebaseApp victimApp;
       // Victim Firebase
       try {
-        victimApp = await Firebase.initializeApp(
-          name: 'life-line-victim',
-          options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
-        );
+        victimApp = Firebase.app('project-life-line');
       } catch (_) {
         victimApp = await Firebase.initializeApp(
-          name: 'life-line-victim',
+          name: 'project-life-line',
           options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
         );
       }
@@ -152,6 +148,7 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
                 'longitude': data?['longitude'] ?? 0.0,
               };
 
+              if (!mounted) return;
               final currentVictims = ref.read(globalPageProvider).victims;
 
               // Remove old version of this victim if it exists
@@ -163,6 +160,7 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
               // Add the latest approved version
               updatedList.add(updatedVictim);
 
+              if (!mounted) return;
               ref.read(globalPageProvider.notifier).setVictims(updatedList);
             });
 

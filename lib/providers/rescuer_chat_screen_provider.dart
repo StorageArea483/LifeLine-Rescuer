@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/legacy.dart';
 final rescuerChatIdProvider = StateProvider<String?>((ref) => null);
 
 // Loading state while chat initializes
-final rescuerChatLoadingProvider = StateProvider<bool>((ref) => false);
+final rescuerChatLoadingProvider = StateProvider.autoDispose<bool>(
+  (ref) => false,
+);
 
 // Messages for a given chatId
 final rescuerChatMessagesProvider =

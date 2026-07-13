@@ -86,22 +86,19 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
   }
 
   Future<void> _initSecondaryFirebase() async {
-    if (!mounted) return;
-
     try {
+      if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(true);
 
       FirebaseApp victimApp;
       FirebaseApp ngoApp;
+
       // Victim Firebase
       try {
-        victimApp = await Firebase.initializeApp(
-          name: 'life-line-victim',
-          options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
-        );
+        victimApp = Firebase.app('project-life-line');
       } catch (_) {
         victimApp = await Firebase.initializeApp(
-          name: 'life-line-victim',
+          name: 'project-life-line',
           options: Platform.isIOS ? _victimIosOptions : _victimAndroidOptions,
         );
       }
@@ -140,6 +137,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
     if (_victimFirestore == null || widget.assignmentIds == null) return;
 
     try {
+      if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(true);
 
       final List<Map<String, dynamic>> pending = [];
@@ -176,9 +174,10 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
     bool? isAssigned,
   ) async {
     if (_victimFirestore == null) return;
-    if (!mounted) return;
 
+    if (!mounted) return;
     ref.read(globalPageProvider.notifier).setIsLoading(true);
+
     try {
       await _victimFirestore!.collection('users').doc(uid).set({
         'requestAccepted': newStatus,

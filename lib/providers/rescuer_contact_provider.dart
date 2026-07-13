@@ -6,3 +6,7 @@ final rescuerContactLoadingProvider = StateProvider.autoDispose<bool>(
 
 final assignedVictimsProvider =
     StateProvider.autoDispose<List<Map<String, dynamic>>>((ref) => []);
+
+final assignedNgoProvider = StateProvider.autoDispose<Map<String, dynamic>?>(
+  (ref) => null,
+);

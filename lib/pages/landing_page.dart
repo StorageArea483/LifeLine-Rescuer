@@ -32,8 +32,6 @@ class _LandingPageState extends ConsumerState<LandingPage> {
 
   Future<void> _fetchUserData() async {
     if (!mounted) return;
-
-    // Set loading state to true
     ref.read(landingPageProvider.notifier).setIsLoading(true);
 
     try {
