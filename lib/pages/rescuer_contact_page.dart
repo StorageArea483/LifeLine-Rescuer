@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -7,11 +8,14 @@ import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'dart:io' show Platform;
 
 import 'package:life_line_rescuer/providers/call_state_provider.dart';
+import 'package:life_line_rescuer/providers/incoming_call_provider.dart';
 import 'package:life_line_rescuer/providers/rescuer_contact_provider.dart';
 import 'package:life_line_rescuer/services/call_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
+import 'package:life_line_rescuer/widgets/global/incoming_call_screen.dart';
 import 'package:life_line_rescuer/widgets/global/ngo_chat_screen.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
@@ -31,6 +35,8 @@ class RescuerContactPage extends ConsumerStatefulWidget {
 class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
   FirebaseFirestore? victimFirestore;
   FirebaseFirestore? ngoFirestore;
+  ProviderSubscription? _callStreamSubscription;
+  ProviderSubscription? _incomingCallSubscription;
 
   static const FirebaseOptions _victimAndroidOptions = FirebaseOptions(
     apiKey: 'AIzaSyByihQ3YBdrJUrAAxFSX3257fUMa0AJ6uo',
@@ -65,6 +71,124 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSecondaryFirebase();
+      _listenToCallState();
+    });
+  }
+
+  @override
+  void dispose() {
+    _callStreamSubscription?.close();
+    _incomingCallSubscription?.close();
+    super.dispose();
+  }
+
+  void _listenToCallState() {
+    // 1. Listener for Outgoing Call workflows
+    _callStreamSubscription = ref.listenManual<
+      AsyncValue<DocumentSnapshot?>
+    >(currentCallDocStreamProvider, (previous, next) {
+      if (!mounted) return;
+      final currentCallId = ref.read(currentCallIdProvider);
+
+      if (currentCallId == null) {
+        _hasJoinedJitsi = false;
+        return;
+      }
+
+      next.whenData((callDoc) {
+        if (callDoc != null && callDoc.exists) {
+          final callData = callDoc.data() as Map<String, dynamic>?;
+          final callStatus = callData?['status'] ?? '';
+          final senderId = callData?['senderId'] ?? '';
+          final targetName = callData?['callerName'] ?? 'Caller';
+
+          if (callStatus == 'ringing') {
+            if (previous?.value == null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: '/outgoing-call'),
+                  builder:
+                      (context) => OutgoingCallScreen(
+                        callId: currentCallId,
+                        receiverName: targetName,
+                      ),
+                ),
+              );
+            }
+          } else if (callStatus == 'accepted') {
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+            if (senderId == currentUserId && !_hasJoinedJitsi) {
+              _hasJoinedJitsi = true;
+              CallService.joinRoom(
+                roomName: currentCallId,
+                displayName: callData?['callerName'] ?? 'Unknown',
+                avatarUrl: callData?['callerPhotoUrl'] ?? '',
+                audioOnly: callData?['audioOnly'] ?? false,
+              );
+            }
+            // Safely remove the outgoing call screen without popping the whole stack
+            Navigator.of(
+              context,
+            ).popUntil((route) => route.settings.name != '/outgoing-call');
+          } else if (callStatus == 'declined' || callStatus == 'ended') {
+            CallService.hangUp();
+
+            // Remove outgoing calling screen and present feedback
+            Navigator.of(
+              context,
+            ).popUntil((route) => route.settings.name != '/outgoing-call');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder:
+                    (context) => CallFeedbackScreen(
+                      title:
+                          callStatus == 'declined'
+                              ? 'Call Declined'
+                              : 'Call Ended',
+                      subtitle:
+                          callStatus == 'declined'
+                              ? 'The recipient has declined your call.'
+                              : 'The conversation has ended',
+                      icon:
+                          callStatus == 'declined'
+                              ? Icons.gpp_bad_rounded
+                              : Icons.phone_disabled_rounded,
+                      iconColor: AppColors.error,
+                    ),
+              ),
+            );
+          }
+        } else if (callDoc != null && !callDoc.exists) {
+          CallService.hangUp();
+          ref.read(currentCallIdProvider.notifier).state = null;
+          Navigator.of(
+            context,
+          ).popUntil((route) => route.settings.name != '/outgoing-call');
+        }
+      });
+    });
+
+    // 2. Listener for Incoming Call Stream Provider
+    _incomingCallSubscription = ref.listenManual<
+      AsyncValue<Map<String, dynamic>?>
+    >(incomingCallStreamProvider, (previous, next) {
+      if (!mounted) return;
+
+      next.whenData((incomingCallData) {
+        if (incomingCallData != null && previous?.value == null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/incoming-call'),
+              builder: (context) => const IncomingCallScreen(),
+            ),
+          );
+        } else if (incomingCallData == null && previous?.value != null) {
+          // If the call document disappears or clears externally, dismiss the overlay screen automatically
+          Navigator.of(
+            context,
+          ).popUntil((route) => route.settings.name != '/incoming-call');
+        }
+      });
     });
   }
 
@@ -112,7 +236,7 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
           context,
           AppColors.error,
         );
-        pageNavigation(const LandingPage(), context);
+        pageNavigation(const InOutCalls(child: LandingPage()), context);
       }
     }
   }
@@ -204,85 +328,6 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<DocumentSnapshot?>>(currentCallDocStreamProvider, (
-      previous,
-      next,
-    ) {
-      if (!mounted) return;
-      final currentCallId = ref.read(currentCallIdProvider);
-
-      if (currentCallId == null) {
-        _hasJoinedJitsi = false;
-        return;
-      }
-
-      next.whenData((callDoc) {
-        if (callDoc != null && callDoc.exists) {
-          final callData = callDoc.data() as Map<String, dynamic>?;
-          final callStatus = callData?['status'] ?? '';
-          final senderId = callData?['senderId'] ?? '';
-          final targetName = callData?['callerName'] ?? 'Caller';
-
-          if (callStatus == 'ringing') {
-            if (previous?.value == null) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder:
-                      (context) => OutgoingCallScreen(
-                        callId: currentCallId,
-                        receiverName: targetName,
-                      ),
-                ),
-              );
-            }
-          } else if (callStatus == 'accepted') {
-            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-            if (senderId == currentUserId && !_hasJoinedJitsi) {
-              _hasJoinedJitsi = true;
-              CallService.joinRoom(
-                roomName: currentCallId,
-                displayName: callData?['callerName'] ?? 'Unknown',
-                avatarUrl: callData?['callerPhotoUrl'] ?? '',
-                audioOnly: callData?['audioOnly'] ?? false,
-              );
-            }
-            // Once connected, pop back to safety configurations
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          } else if (callStatus == 'declined') {
-            CallService.hangUp();
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder:
-                    (context) => const CallFeedbackScreen(
-                      title: 'Call Declined',
-                      subtitle: 'The recipient has declined your call.',
-                      icon: Icons.gpp_bad_rounded,
-                      iconColor: AppColors.error,
-                    ),
-              ),
-            );
-          } else if (callStatus == 'ended') {
-            CallService.hangUp();
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder:
-                    (context) => const CallFeedbackScreen(
-                      title: 'Call Ended',
-                      subtitle: 'The conversation has ended',
-                      icon: Icons.phone_disabled_rounded,
-                      iconColor: AppColors.error,
-                    ),
-              ),
-            );
-          }
-        } else if (callDoc != null && !callDoc.exists) {
-          CallService.hangUp();
-          ref.read(currentCallIdProvider.notifier).state = null;
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
-      });
-    });
-
     return Scaffold(
       backgroundColor: AppColors.softBackground,
       appBar: AppBar(
@@ -389,10 +434,12 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
       child: ListTile(
         onTap: () {
           pageNavigation(
-            RescuerChatScreen(
-              victimId: victim['id'] ?? '',
-              victimName: name,
-              photoUrl: photoURL,
+            InOutCalls(
+              child: RescuerChatScreen(
+                victimId: victim['id'] ?? '',
+                victimName: name,
+                photoUrl: photoURL,
+              ),
             ),
             context,
           );
@@ -518,7 +565,9 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
         mouseCursor: SystemMouseCursors.click,
         onTap: () {
           pageNavigation(
-            NgoChatScreen(ngoId: ngo['id'] ?? '', ngoName: ngoName),
+            InOutCalls(
+              child: NgoChatScreen(ngoId: ngo['id'] ?? '', ngoName: ngoName),
+            ),
             context,
           );
         },

@@ -19,6 +19,7 @@ import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/fetch_lat_long.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'dart:io' show Platform;
@@ -67,13 +68,9 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        _initSecondaryFirebase();
-        await getLocation();
-        await _startLocationTracking();
-      } catch (e) {
-        // Handle errors silently
-      }
+      _initSecondaryFirebase();
+      await getLocation();
+      await _startLocationTracking();
     });
   }
 
@@ -142,7 +139,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const LandingPage(), context);
+      pageNavigation(const InOutCalls(child: LandingPage()), context);
     }
   }
 
@@ -214,7 +211,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
             context,
             AppColors.error,
           );
-          pageNavigation(const LandingPage(), context);
+          pageNavigation(const InOutCalls(child: LandingPage()), context);
         },
       );
     } catch (e) {
@@ -223,7 +220,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const LandingPage(), context);
+      pageNavigation(const InOutCalls(child: LandingPage()), context);
     }
   }
 
@@ -357,7 +354,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const LandingPage(), context);
+      pageNavigation(const InOutCalls(child: LandingPage()), context);
     }
   }
 
@@ -402,7 +399,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const LandingPage(), context);
+      pageNavigation(const InOutCalls(child: LandingPage()), context);
     }
   }
 

@@ -3,29 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_line_rescuer/providers/admin_settings_provider.dart';
 import 'package:life_line_rescuer/providers/internet_provider.dart';
 import 'package:life_line_rescuer/providers/rescuer_access_provider.dart';
-import 'package:life_line_rescuer/providers/incoming_call_provider.dart';
 
-enum AppRoute {
-  loading,
-  offline,
-  login,
-  blocked,
-  maintenance,
-  home,
-  incomingCall,
-}
+enum AppRoute { loading, offline, login, blocked, maintenance, home }
 
 final appRouterProvider = Provider<AppRoute>((ref) {
   final internet = ref.watch(internetProvider);
   final userStatus = ref.watch(rescuerAccessProvider);
   final settings = ref.watch(adminSettingsStreamProvider);
-  final incomingCall = ref.watch(incomingCallStreamProvider);
 
   // Loading Checks
-  if (internet.isLoading ||
-      userStatus.isLoading ||
-      settings.isLoading ||
-      incomingCall.isLoading) {
+  if (internet.isLoading || userStatus.isLoading || settings.isLoading) {
     return AppRoute.loading;
   }
 
@@ -58,12 +45,6 @@ final appRouterProvider = Provider<AppRoute>((ref) {
   if (admin.maintenance) {
     return AppRoute.maintenance;
   }
-
-  // Incoming Call Notification Handle
-  if (incomingCall.value != null) {
-    return AppRoute.incomingCall;
-  }
-
   // Base Default Route
   return AppRoute.home;
 });

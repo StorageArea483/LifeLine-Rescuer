@@ -11,6 +11,7 @@ import 'package:life_line_rescuer/pages/rescuer_contact_page.dart';
 import 'package:life_line_rescuer/providers/rescuer_chat_screen_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 
@@ -106,7 +107,7 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
             context,
             AppColors.error,
           );
-          pageNavigation(const LandingPage(), context);
+          pageNavigation(const InOutCalls(child: LandingPage()), context);
         }
         return;
       }
@@ -133,7 +134,7 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
           context,
           AppColors.error,
         );
-        pageNavigation(const LandingPage(), context);
+        pageNavigation(const InOutCalls(child: LandingPage()), context);
       }
     }
   }
@@ -431,7 +432,10 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
               color: AppColors.textPrimary,
             ),
             onPressed:
-                () => pageNavigation(const RescuerContactPage(), context),
+                () => pageNavigation(
+                  const InOutCalls(child: RescuerContactPage()),
+                  context,
+                ),
           ),
           SizedBox(
             width: avatarSize,

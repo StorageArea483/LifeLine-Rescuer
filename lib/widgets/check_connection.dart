@@ -12,7 +12,7 @@ import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
 import 'package:life_line_rescuer/providers/app_router_provider.dart';
 import 'package:life_line_rescuer/providers/check_connection_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
-import 'package:life_line_rescuer/widgets/global/incoming_call_screen.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 
 class CheckConnection extends ConsumerStatefulWidget {
@@ -161,10 +161,8 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
         return RescuerBlockedDialog(email: user?.email ?? '');
       case AppRoute.maintenance:
         return const MaintenancePage();
-      case AppRoute.incomingCall:
-        return const IncomingCallScreen();
       case AppRoute.home:
-        return const LandingPage();
+        return const InOutCalls(child: LandingPage());
     }
   }
 

@@ -8,6 +8,7 @@ import 'package:life_line_rescuer/pages/rescuer_map_page.dart';
 import 'package:life_line_rescuer/providers/missions_card_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
@@ -20,7 +21,8 @@ class MissionsCardSheet {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => MissionSheet(assigned: assignments),
+      builder:
+          (context) => InOutCalls(child: MissionSheet(assigned: assignments)),
     );
   }
 }
@@ -101,7 +103,7 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
         context,
         AppColors.error,
       );
-      pageNavigation(const LandingPage(), context);
+      pageNavigation(const InOutCalls(child: LandingPage()), context);
     }
   }
 
@@ -390,10 +392,12 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
                       ),
                       onPressed: () {
                         pageNavigation(
-                          RescuerMapPage(
-                            latitude: latitude,
-                            longitude: longitude,
-                            victimUid: uid,
+                          InOutCalls(
+                            child: RescuerMapPage(
+                              latitude: latitude,
+                              longitude: longitude,
+                              victimUid: uid,
+                            ),
                           ),
                           context,
                         );

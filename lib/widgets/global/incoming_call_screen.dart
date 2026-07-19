@@ -89,27 +89,43 @@ class IncomingCallScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      // Decline Button Action
                       _callActionButton(
                         icon: Icons.call_end_rounded,
                         color: Colors.red,
                         label: 'Decline',
                         onTap: () async {
                           await CallService.declineCall(callId);
+                          if (context.mounted) {
+                            Navigator.of(
+                              context,
+                            ).pop(); // Navigates cleanly back to underlying screen
+                          }
                         },
                       ),
+
+                      // Accept Button Action
                       _callActionButton(
                         icon: Icons.call_rounded,
                         color: Colors.green,
                         label: 'Accept',
                         onTap: () async {
+                          if (!context.mounted) return;
                           ref.read(activeCallIdProvider.notifier).state =
                               callId;
+
+                          // Navigates cleanly back to underlying screen
+                          if (context.mounted) Navigator.of(context).pop();
+
                           await CallService.acceptCall(
                             callId: callId,
                             displayName: callerName,
                             avatarUrl: callerPhotoUrl,
                             audioOnly: audioOnly,
                           );
+
+                          // Reset state after communication engine has spawned successfully
+                          if (!context.mounted) return;
                           ref.read(activeCallIdProvider.notifier).state = null;
                         },
                       ),

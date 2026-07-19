@@ -7,6 +7,7 @@ import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/providers/missions_card_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
@@ -25,9 +26,11 @@ class RequestsCardSheet {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder:
-          (context) => RequestSheet(
-            activeRequests: activeRequests,
-            assignmentIds: assignmentIds,
+          (context) => InOutCalls(
+            child: RequestSheet(
+              activeRequests: activeRequests,
+              assignmentIds: assignmentIds,
+            ),
           ),
     );
   }
@@ -126,7 +129,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
         context,
         AppColors.error,
       );
-      pageNavigation(const LandingPage(), context);
+      pageNavigation(const InOutCalls(child: LandingPage()), context);
     }
   }
 

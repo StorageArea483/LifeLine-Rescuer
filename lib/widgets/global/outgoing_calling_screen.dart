@@ -68,6 +68,7 @@ class OutgoingCallScreen extends ConsumerWidget {
                 GestureDetector(
                   onTap: () async {
                     await CallService.cancelCall(callId);
+                    if (!context.mounted) return;
                     ref.read(currentCallIdProvider.notifier).state = null;
                   },
                   child: Container(
