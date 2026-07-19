@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/legacy.dart';
 
 class RequestsPageNotifier extends StateNotifier<RequestsPageState> {
-  RequestsPageNotifier() : super(RequestsPageState(isLoading: false, victims: []));
+  RequestsPageNotifier()
+    : super(RequestsPageState(isLoading: false, victims: []));
 
   void setIsLoading(bool value) {
     state = state.copyWith(isLoading: value);
@@ -30,6 +31,6 @@ class RequestsPageState {
 }
 
 final requestsPageProvider =
-    StateNotifierProvider.autoDispose<RequestsPageNotifier, RequestsPageState>(
+    StateNotifierProvider<RequestsPageNotifier, RequestsPageState>(
       (ref) => RequestsPageNotifier(),
     );

@@ -14,28 +14,6 @@ import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' show Platform;
 
-class RequestsCardSheet {
-  static void show(
-    BuildContext context, {
-    required int activeRequests,
-    List<String>? assignmentIds,
-  }) {
-    showModalBottomSheet(
-      isDismissible: true,
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => InOutCalls(
-            child: RequestSheet(
-              activeRequests: activeRequests,
-              assignmentIds: assignmentIds,
-            ),
-          ),
-    );
-  }
-}
-
 class RequestSheet extends ConsumerStatefulWidget {
   final int activeRequests;
   final List<String>? assignmentIds;
@@ -220,61 +198,44 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: AppColors.softBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    return Scaffold(
+      backgroundColor: AppColors.softBackground,
+      appBar: AppBar(
+        backgroundColor: AppColors.surfaceLight,
+        elevation: 0,
+        centerTitle: true,
+        scrolledUnderElevation: 0,
+        title: const Text('Victim Requests', style: AppText.appHeader),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.textSecondary,
+          ),
+          onPressed: () {
+            pageNavigation(const InOutCalls(child: LandingPage()), context);
+          },
+        ),
       ),
-      child: Stack(
-        children: [
-          Center(
-            child: SizedBox(
-              width: ResponsiveHelper.contentWidth(context),
-              child: Column(
-                children: [
-                  // Handle bar
-                  Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.borderColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  // Header
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: ResponsiveHelper.isTablet(context) ? 32 : 16,
-                      vertical: ResponsiveHelper.isTablet(context) ? 24 : 16,
-                    ),
-                    child: Text(
-                      'Requests',
-                      style: AppText.subtitle.copyWith(
-                        fontSize: ResponsiveHelper.titleFont(context),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  // Body
-                  Expanded(
-                    child: Consumer(
-                      builder: (context, ref, child) {
-                        return _buildBody(ref);
-                      },
-                    ),
-                  ),
-                ],
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: SizedBox(
+                width: ResponsiveHelper.contentWidth(context),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    return _buildBody(ref);
+                  },
+                ),
               ),
             ),
-          ),
-          Consumer(
-            builder: (context, ref, child) {
-              return _buildLoadingOverlay(ref);
-            },
-          ),
-        ],
+            Consumer(
+              builder: (context, ref, child) {
+                return _buildLoadingOverlay(ref);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -296,6 +257,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
           padding: EdgeInsets.all(ResponsiveHelper.isTablet(context) ? 48 : 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(
                 Icons.pending_actions,
@@ -307,6 +269,8 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                 'No requests available',
                 style: AppText.subtitle.copyWith(
                   fontSize: ResponsiveHelper.titleFont(context),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -370,9 +334,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-
                       const SizedBox(height: 4),
-
                       Row(
                         children: [
                           const Icon(
@@ -392,9 +354,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 4),
-
                       Row(
                         children: [
                           const Icon(
@@ -419,9 +379,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                 ),
               ],
             ),
-
             SizedBox(height: ResponsiveHelper.isTablet(context) ? 24 : 16),
-
             Row(
               children: [
                 Expanded(
@@ -449,9 +407,7 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
                     label: const Text('Accept'),
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {

@@ -10,6 +10,7 @@ import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
 import 'package:life_line_rescuer/pages/service_cards/missions_card_sheet.dart';
 import 'package:life_line_rescuer/pages/service_cards/requests_card_sheet.dart';
+import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
@@ -296,8 +297,6 @@ class _LandingPageState extends ConsumerState<LandingPage> {
               ),
               child: Consumer(
                 builder: (context, ref, child) {
-                  final dashboardRequests =
-                      ref.read(landingPageProvider).activeRequests;
                   return InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
@@ -327,25 +326,48 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                           );
                         }
                       } else if (action['title'] == 'Missions') {
+                        final isLoading =
+                            ref.read(landingPageProvider).isLoading;
+                        if (isLoading) {
+                          return;
+                        }
                         if (mounted) {
-                          MissionsCardSheet.show(
+                          final currentData =
+                              ref.read(landingPageProvider).activeRequests;
+                          pageNavigation(
+                            InOutCalls(
+                              child: MissionSheet(
+                                assigned:
+                                    (currentData['assignmentIds']
+                                            as List<dynamic>?)
+                                        ?.cast<String>(),
+                              ),
+                            ),
                             context,
-                            assignments: dashboardRequests['assignmentIds'],
                           );
                         }
                       } else if (action['title'] == 'Requests') {
+                        final isLoading =
+                            ref.read(landingPageProvider).isLoading;
+                        if (isLoading) {
+                          return;
+                        }
                         if (mounted) {
-                          final active =
-                              dashboardRequests['activeRequests'] ?? 0;
+                          final currentData =
+                              ref.read(landingPageProvider).activeRequests;
+                          final active = currentData['activeRequests'] ?? 0;
                           final ids =
-                              (dashboardRequests['assignmentIds']
-                                      as List<dynamic>?)
+                              (currentData['assignmentIds'] as List<dynamic>?)
                                   ?.cast<String>() ??
                               [];
-                          RequestsCardSheet.show(
+                          pageNavigation(
+                            InOutCalls(
+                              child: RequestSheet(
+                                activeRequests: active,
+                                assignmentIds: ids,
+                              ),
+                            ),
                             context,
-                            activeRequests: active,
-                            assignmentIds: ids,
                           );
                         }
                       }

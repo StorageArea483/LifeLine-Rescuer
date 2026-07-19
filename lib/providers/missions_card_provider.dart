@@ -30,7 +30,7 @@ class GlobalPageState {
 }
 
 final globalPageProvider =
-    StateNotifierProvider.autoDispose<GlobalPageNotifier, GlobalPageState>(
+    StateNotifierProvider<GlobalPageNotifier, GlobalPageState>(
       (ref) => GlobalPageNotifier(),
     );
 
