@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'dart:io' show Platform;
 
+import 'package:life_line_rescuer/providers/call_state_provider.dart';
 import 'package:life_line_rescuer/providers/rescuer_contact_provider.dart';
+import 'package:life_line_rescuer/services/call_service.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/bottom_navbar.dart';
@@ -15,6 +17,8 @@ import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'package:life_line_rescuer/widgets/global/rescuer_chat_screen.dart';
+import 'package:life_line_rescuer/widgets/global/outgoing_calling_screen.dart';
+import 'package:life_line_rescuer/widgets/global/called_feedback_screen.dart';
 
 class RescuerContactPage extends ConsumerStatefulWidget {
   const RescuerContactPage({super.key});
@@ -28,7 +32,6 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
   FirebaseFirestore? victimFirestore;
   FirebaseFirestore? ngoFirestore;
 
-  // life-line-victim database credentials
   static const FirebaseOptions _victimAndroidOptions = FirebaseOptions(
     apiKey: 'AIzaSyByihQ3YBdrJUrAAxFSX3257fUMa0AJ6uo',
     appId: '1:503939690280:android:aff06bb9fb777faf792a1d',
@@ -55,6 +58,8 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
     storageBucket: 'life-line-ngo.firebasestorage.app',
   );
 
+  bool _hasJoinedJitsi = false;
+
   @override
   void initState() {
     super.initState();
@@ -71,7 +76,6 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
       FirebaseApp rescuerApp;
       FirebaseApp ngoApp;
 
-      // Victim Firebase
       try {
         rescuerApp = Firebase.app('project-life-line');
       } catch (_) {
@@ -83,7 +87,6 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
 
       victimFirestore = FirebaseFirestore.instanceFor(app: rescuerApp);
 
-      // NGO Firebase
       try {
         ngoApp = Firebase.app('life-line-ngo');
       } catch (_) {
@@ -201,6 +204,85 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<DocumentSnapshot?>>(currentCallDocStreamProvider, (
+      previous,
+      next,
+    ) {
+      if (!mounted) return;
+      final currentCallId = ref.read(currentCallIdProvider);
+
+      if (currentCallId == null) {
+        _hasJoinedJitsi = false;
+        return;
+      }
+
+      next.whenData((callDoc) {
+        if (callDoc != null && callDoc.exists) {
+          final callData = callDoc.data() as Map<String, dynamic>?;
+          final callStatus = callData?['status'] ?? '';
+          final senderId = callData?['senderId'] ?? '';
+          final targetName = callData?['callerName'] ?? 'Caller';
+
+          if (callStatus == 'ringing') {
+            if (previous?.value == null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder:
+                      (context) => OutgoingCallScreen(
+                        callId: currentCallId,
+                        receiverName: targetName,
+                      ),
+                ),
+              );
+            }
+          } else if (callStatus == 'accepted') {
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+            if (senderId == currentUserId && !_hasJoinedJitsi) {
+              _hasJoinedJitsi = true;
+              CallService.joinRoom(
+                roomName: currentCallId,
+                displayName: callData?['callerName'] ?? 'Unknown',
+                avatarUrl: callData?['callerPhotoUrl'] ?? '',
+                audioOnly: callData?['audioOnly'] ?? false,
+              );
+            }
+            // Once connected, pop back to safety configurations
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (callStatus == 'declined') {
+            CallService.hangUp();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder:
+                    (context) => const CallFeedbackScreen(
+                      title: 'Call Declined',
+                      subtitle: 'The recipient has declined your call.',
+                      icon: Icons.gpp_bad_rounded,
+                      iconColor: AppColors.error,
+                    ),
+              ),
+            );
+          } else if (callStatus == 'ended') {
+            CallService.hangUp();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder:
+                    (context) => const CallFeedbackScreen(
+                      title: 'Call Ended',
+                      subtitle: 'The conversation has ended',
+                      icon: Icons.phone_disabled_rounded,
+                      iconColor: AppColors.error,
+                    ),
+              ),
+            );
+          }
+        } else if (callDoc != null && !callDoc.exists) {
+          CallService.hangUp();
+          ref.read(currentCallIdProvider.notifier).state = null;
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      });
+    });
+
     return Scaffold(
       backgroundColor: AppColors.softBackground,
       appBar: AppBar(
@@ -391,8 +473,18 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
             color: AppColors.primaryMaroon,
             size: ResponsiveHelper.iconSize(context),
           ),
-          onPressed: () {
-            // Calling logic to be implemented later
+          onPressed: () async {
+            final rescuerId = FirebaseAuth.instance.currentUser?.uid;
+            if (rescuerId == null) return;
+
+            await CallService.initiateCall(
+              callerId: rescuerId,
+              receiverId: victim['id'] ?? '',
+              callerName: 'Rescuer',
+              callerPhotoUrl: FirebaseAuth.instance.currentUser?.photoURL ?? '',
+              ref: ref,
+              audioOnly: false,
+            );
           },
         ),
       ),

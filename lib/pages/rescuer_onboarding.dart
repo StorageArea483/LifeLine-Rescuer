@@ -408,6 +408,7 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
               'blocked': false,
               'online': true,
               'requests': 0,
+              'photoURL': FirebaseAuth.instance.currentUser?.photoURL,
             }, SetOptions(merge: true));
       }
 

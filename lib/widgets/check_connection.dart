@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'package:life_line_rescuer/pages/landing_page.dart';
 import 'package:life_line_rescuer/pages/maintenance_page.dart';
 import 'package:life_line_rescuer/pages/offline_connectivity.dart';
@@ -11,6 +12,7 @@ import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
 import 'package:life_line_rescuer/providers/app_router_provider.dart';
 import 'package:life_line_rescuer/providers/check_connection_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
+import 'package:life_line_rescuer/widgets/global/incoming_call_screen.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 
 class CheckConnection extends ConsumerStatefulWidget {
@@ -24,7 +26,6 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
     with WidgetsBindingObserver {
   FirebaseFirestore? _ngoFirestore;
 
-  // life-line-ngo database credentials
   static const FirebaseOptions _ngoFirebaseOptions = FirebaseOptions(
     apiKey: 'AIzaSyBeieryGaw4bh4dtbrI54qsIc51XkP6SoM',
     appId: '1:169949190544:web:2640453ce5dd2aa55d3b15',
@@ -69,7 +70,7 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
 
       _ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
     } catch (e) {
-      // Ignore Firestore initialization errors.
+      // Ignore
     } finally {
       if (mounted) {
         ref.read(checkConnectionProvider.notifier).state = false;
@@ -112,7 +113,7 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
           .doc(user.uid)
           .update({'online': online});
     } catch (_) {
-      // Ignore Firestore update errors.
+      // Ignore
     }
   }
 
@@ -133,18 +134,13 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
 
     return Stack(
       children: [
-        // Main content based on route
         _buildRouteWidget(route),
-
-        // Loading overlay
         Consumer(
           builder: (context, ref, child) {
             final isInitializing = ref.watch(checkConnectionProvider);
-
             if (!isInitializing) {
               return const SizedBox.shrink();
             }
-
             return pageLoading(context);
           },
         ),
@@ -160,11 +156,13 @@ class _CheckConnectionState extends ConsumerState<CheckConnection>
         return const OfflineConnectivity();
       case AppRoute.login:
         return const RescuerOnboarding();
-      case AppRoute.maintenance:
-        return const MaintenancePage();
       case AppRoute.blocked:
         final user = FirebaseAuth.instance.currentUser;
         return RescuerBlockedDialog(email: user?.email ?? '');
+      case AppRoute.maintenance:
+        return const MaintenancePage();
+      case AppRoute.incomingCall:
+        return const IncomingCallScreen();
       case AppRoute.home:
         return const LandingPage();
     }

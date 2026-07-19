@@ -25,6 +25,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
+        tools:replace="android:label"
         android:label="LifeLine Rescuer"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"

@@ -592,6 +592,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.5"
+  jitsi_meet_flutter_sdk:
+    dependency: "direct main"
+    description:
+      name: jitsi_meet_flutter_sdk
+      sha256: "5f4b45121629bd74d01c48ecce6766bac94eb2688ce8d22af150a62bcf305683"
+      url: "https://pub.dev"
+    source: hosted
+    version: "13.0.0"
   jni:
     dependency: transitive
     description:

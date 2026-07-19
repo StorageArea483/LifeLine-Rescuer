@@ -118,9 +118,6 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
       ngoFirestore = FirebaseFirestore.instanceFor(app: ngoApp);
 
       await fetchPendingRequests();
-
-      if (!mounted) return;
-      ref.read(globalPageProvider.notifier).setIsLoading(false);
     } catch (e) {
       if (!mounted) return;
       ref.read(globalPageProvider.notifier).setIsLoading(false);
@@ -134,12 +131,12 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
   }
 
   Future<void> fetchPendingRequests() async {
-    if (_victimFirestore == null || widget.assignmentIds == null) return;
+    if (_victimFirestore == null || widget.assignmentIds == null) {
+      if (mounted) ref.read(globalPageProvider.notifier).setIsLoading(false);
+      return;
+    }
 
     try {
-      if (!mounted) return;
-      ref.read(globalPageProvider.notifier).setIsLoading(true);
-
       final List<Map<String, dynamic>> pending = [];
 
       for (final uid in widget.assignmentIds!) {
@@ -214,7 +211,6 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
         context,
         AppColors.error,
       );
-    } finally {
       if (mounted) ref.read(globalPageProvider.notifier).setIsLoading(false);
     }
   }
@@ -282,6 +278,13 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
 
   Widget _buildBody(WidgetRef ref) {
     if (!mounted) return const SizedBox.shrink();
+
+    // Check loading state first
+    final isLoading = ref.watch(globalPageProvider.select((v) => v.isLoading));
+    if (isLoading) {
+      return const SizedBox.shrink();
+    }
+
     final victims = ref.watch(globalPageProvider.select((v) => v.victims));
 
     if (victims.isEmpty) {

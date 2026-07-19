@@ -234,6 +234,12 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
 
   Widget _buildBody(WidgetRef ref) {
     if (!mounted) return const SizedBox.shrink();
+
+    final isLoading = ref.watch(globalPageProvider.select((v) => v.isLoading));
+    if (isLoading) {
+      return const SizedBox.shrink();
+    }
+
     final victims = ref.watch(globalPageProvider.select((v) => v.victims));
 
     if (victims.isEmpty) {

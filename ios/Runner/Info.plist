@@ -31,6 +31,10 @@
         <string>location</string>
     </array>
 
+    <!--Camera-->
+    <key>NSCameraUsageDescription</key>
+    <string>The app needs access to your camera for calls.</string>
+
     <!-- Microphone & Speech -->
     <key>NSMicrophoneUsageDescription</key>
     <string>This app needs access to your microphone to record your voice input.</string>
