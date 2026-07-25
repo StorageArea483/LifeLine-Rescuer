@@ -12,6 +12,8 @@ import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class NgoChatScreen extends ConsumerStatefulWidget {
   final String ngoId;
@@ -45,8 +47,8 @@ class _NgoChatScreenState extends ConsumerState<NgoChatScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeChat();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initializeChat();
     });
   }
 
@@ -88,7 +90,14 @@ class _NgoChatScreenState extends ConsumerState<NgoChatScreen> {
             context,
             AppColors.error,
           );
-          pageNavigation(const InOutCalls(child: LandingPage()), context);
+          pageNavigation(
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(child: LandingPage()),
+              ),
+            ),
+            context,
+          );
         }
         return;
       }
@@ -112,7 +121,12 @@ class _NgoChatScreenState extends ConsumerState<NgoChatScreen> {
           context,
           AppColors.error,
         );
-        pageNavigation(const InOutCalls(child: LandingPage()), context);
+        pageNavigation(
+          const InternetConnection(
+            child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+          ),
+          context,
+        );
       }
     }
   }
@@ -307,7 +321,11 @@ class _NgoChatScreenState extends ConsumerState<NgoChatScreen> {
             ),
             onPressed:
                 () => pageNavigation(
-                  const InOutCalls(child: RescuerContactPage()),
+                  const InternetConnection(
+                    child: RescuerOnlineStatus(
+                      child: InOutCalls(child: RescuerContactPage()),
+                    ),
+                  ),
                   context,
                 ),
           ),

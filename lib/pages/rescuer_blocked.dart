@@ -5,6 +5,7 @@ import 'package:life_line_rescuer/pages/rescuer_onboarding.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class RescuerBlockedDialog extends StatelessWidget {
   final String email;
@@ -97,7 +98,10 @@ class RescuerBlockedDialog extends StatelessWidget {
             .delete();
       }
 
-      pageNavigation(const RescuerOnboarding(), context);
+      pageNavigation(
+        const InternetConnection(child: RescuerOnboarding()),
+        context,
+      );
     } catch (e) {
       if (context.mounted) {
         pageMessage(

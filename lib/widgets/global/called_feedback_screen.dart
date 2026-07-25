@@ -5,6 +5,8 @@ import 'package:life_line_rescuer/providers/call_state_provider.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class CallFeedbackScreen extends ConsumerWidget {
   final String title;
@@ -50,7 +52,14 @@ class CallFeedbackScreen extends ConsumerWidget {
               ),
               onPressed: () {
                 ref.read(currentCallIdProvider.notifier).state = null;
-                pageNavigation(const InOutCalls(child: LandingPage()), context);
+                pageNavigation(
+                  const InternetConnection(
+                    child: RescuerOnlineStatus(
+                      child: InOutCalls(child: LandingPage()),
+                    ),
+                  ),
+                  context,
+                );
               },
               child: const Text(
                 "Go Home",

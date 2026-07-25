@@ -23,6 +23,8 @@ import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'package:life_line_rescuer/widgets/global/rescuer_chat_screen.dart';
 import 'package:life_line_rescuer/widgets/global/outgoing_calling_screen.dart';
 import 'package:life_line_rescuer/widgets/global/called_feedback_screen.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class RescuerContactPage extends ConsumerStatefulWidget {
   const RescuerContactPage({super.key});
@@ -69,8 +71,8 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initSecondaryFirebase();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initSecondaryFirebase();
       _listenToCallState();
     });
   }
@@ -236,7 +238,12 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
           context,
           AppColors.error,
         );
-        pageNavigation(const InOutCalls(child: LandingPage()), context);
+        pageNavigation(
+          const InternetConnection(
+            child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+          ),
+          context,
+        );
       }
     }
   }
@@ -434,11 +441,15 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
       child: ListTile(
         onTap: () {
           pageNavigation(
-            InOutCalls(
-              child: RescuerChatScreen(
-                victimId: victim['id'] ?? '',
-                victimName: name,
-                photoUrl: photoURL,
+            InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(
+                  child: RescuerChatScreen(
+                    victimId: victim['id'] ?? '',
+                    victimName: name,
+                    photoUrl: photoURL,
+                  ),
+                ),
               ),
             ),
             context,
@@ -565,8 +576,15 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
         mouseCursor: SystemMouseCursors.click,
         onTap: () {
           pageNavigation(
-            InOutCalls(
-              child: NgoChatScreen(ngoId: ngo['id'] ?? '', ngoName: ngoName),
+            InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(
+                  child: NgoChatScreen(
+                    ngoId: ngo['id'] ?? '',
+                    ngoName: ngoName,
+                  ),
+                ),
+              ),
             ),
             context,
           );

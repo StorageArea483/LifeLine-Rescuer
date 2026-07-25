@@ -4,6 +4,4 @@ import 'package:flutter_riverpod/legacy.dart';
 final profileLoadingProvider = StateProvider.autoDispose<bool>((ref) => false);
 
 // Provider for user data
-final userDataProvider = StateProvider.autoDispose<Map<String, dynamic>?>(
-  (ref) => null,
-);
+final userDataProvider = StateProvider<Map<String, dynamic>?>((ref) => null);

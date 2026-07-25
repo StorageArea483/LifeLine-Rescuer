@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -23,6 +22,9 @@ import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'dart:io' show Platform;
+
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class RescuerMapPage extends ConsumerStatefulWidget {
   final double? latitude;
@@ -68,7 +70,7 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _initSecondaryFirebase();
+      await _initSecondaryFirebase();
       await getLocation();
       await _startLocationTracking();
     });
@@ -139,7 +141,12 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 
@@ -211,7 +218,14 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
             context,
             AppColors.error,
           );
-          pageNavigation(const InOutCalls(child: LandingPage()), context);
+          pageNavigation(
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(child: LandingPage()),
+              ),
+            ),
+            context,
+          );
         },
       );
     } catch (e) {
@@ -220,7 +234,12 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 
@@ -354,7 +373,12 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 
@@ -399,7 +423,12 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 
@@ -524,12 +553,38 @@ class _RescuerMapPageState extends ConsumerState<RescuerMapPage> {
   }
 
   Widget _buildCurrentLocationLayer() {
-    return const CurrentLocationLayer(
-      style: LocationMarkerStyle(
-        marker: DefaultLocationMarker(color: AppColors.primaryMaroon),
-        markerSize: Size(20, 20),
-        markerDirection: MarkerDirection.heading,
-      ),
+    return MarkerLayer(
+      markers: [
+        Marker(
+          point: const LatLng(37.4170, -122.0845),
+
+          width: 40,
+
+          height: 40,
+
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.primaryMaroon,
+
+              shape: BoxShape.circle,
+
+              border: Border.all(color: Colors.white, width: 3),
+
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+
+                  blurRadius: 8,
+
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+
+            child: const Icon(Icons.person, color: Colors.white, size: 20),
+          ),
+        ),
+      ],
     );
   }
 

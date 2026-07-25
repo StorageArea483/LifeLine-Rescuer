@@ -6,6 +6,8 @@ import 'package:life_line_rescuer/pages/rescuer_map_page.dart';
 import 'package:life_line_rescuer/styles/styles.dart';
 import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class BottomNavbar extends StatelessWidget {
   final int currentIndex;
@@ -20,25 +22,47 @@ class BottomNavbar extends StatelessWidget {
         if (index == currentIndex) {
           return;
         } else if (index == 0 && context.mounted) {
-          pageNavigation(const InOutCalls(child: LandingPage()), context);
+          pageNavigation(
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(child: LandingPage()),
+              ),
+            ),
+            context,
+          );
         } else if (index == 1 && context.mounted) {
           pageNavigation(
-            const InOutCalls(
-              child: RescuerMapPage(
-                latitude: null,
-                longitude: null,
-                victimUid: null,
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(
+                  child: RescuerMapPage(
+                    latitude: null,
+                    longitude: null,
+                    victimUid: null,
+                  ),
+                ),
               ),
             ),
             context,
           );
         } else if (index == 2 && context.mounted) {
           pageNavigation(
-            const InOutCalls(child: RescuerContactPage()),
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(child: RescuerContactPage()),
+              ),
+            ),
             context,
           );
         } else if (index == 3 && context.mounted) {
-          pageNavigation(const InOutCalls(child: ProfilePage()), context);
+          pageNavigation(
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(child: ProfilePage()),
+              ),
+            ),
+            context,
+          );
         }
       },
       type: BottomNavigationBarType.fixed,

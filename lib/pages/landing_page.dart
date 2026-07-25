@@ -14,6 +14,8 @@ import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class LandingPage extends ConsumerStatefulWidget {
   const LandingPage({super.key});
@@ -26,8 +28,8 @@ class _LandingPageState extends ConsumerState<LandingPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _fetchUserData();
     });
   }
 
@@ -112,7 +114,10 @@ class _LandingPageState extends ConsumerState<LandingPage> {
             .delete();
       }
 
-      pageNavigation(const RescuerOnboarding(), context);
+      pageNavigation(
+        const InternetConnection(child: RescuerOnboarding()),
+        context,
+      );
     } catch (e) {
       if (context.mounted) {
         pageMessage(
@@ -335,12 +340,16 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                           final currentData =
                               ref.read(landingPageProvider).activeRequests;
                           pageNavigation(
-                            InOutCalls(
-                              child: MissionSheet(
-                                assigned:
-                                    (currentData['assignmentIds']
-                                            as List<dynamic>?)
-                                        ?.cast<String>(),
+                            InternetConnection(
+                              child: RescuerOnlineStatus(
+                                child: InOutCalls(
+                                  child: MissionSheet(
+                                    assigned:
+                                        (currentData['assignmentIds']
+                                                as List<dynamic>?)
+                                            ?.cast<String>(),
+                                  ),
+                                ),
                               ),
                             ),
                             context,
@@ -361,10 +370,14 @@ class _LandingPageState extends ConsumerState<LandingPage> {
                                   ?.cast<String>() ??
                               [];
                           pageNavigation(
-                            InOutCalls(
-                              child: RequestSheet(
-                                activeRequests: active,
-                                assignmentIds: ids,
+                            InternetConnection(
+                              child: RescuerOnlineStatus(
+                                child: InOutCalls(
+                                  child: RequestSheet(
+                                    activeRequests: active,
+                                    assignmentIds: ids,
+                                  ),
+                                ),
                               ),
                             ),
                             context,

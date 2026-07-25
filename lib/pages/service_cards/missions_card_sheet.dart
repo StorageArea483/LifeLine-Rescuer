@@ -14,6 +14,9 @@ import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'dart:io' show Platform;
 
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
+
 class MissionSheet extends ConsumerStatefulWidget {
   final List<String>? assigned;
   const MissionSheet({super.key, this.assigned});
@@ -47,8 +50,8 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initSecondaryFirebase();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initSecondaryFirebase();
     });
   }
 
@@ -90,7 +93,12 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 
@@ -175,7 +183,14 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
             color: AppColors.textSecondary,
           ),
           onPressed: () {
-            pageNavigation(const InOutCalls(child: LandingPage()), context);
+            pageNavigation(
+              const InternetConnection(
+                child: RescuerOnlineStatus(
+                  child: InOutCalls(child: LandingPage()),
+                ),
+              ),
+              context,
+            );
           },
         ),
       ),
@@ -361,11 +376,15 @@ class _MissionSheetState extends ConsumerState<MissionSheet> {
                       ),
                       onPressed: () {
                         pageNavigation(
-                          InOutCalls(
-                            child: RescuerMapPage(
-                              latitude: latitude,
-                              longitude: longitude,
-                              victimUid: uid,
+                          InternetConnection(
+                            child: RescuerOnlineStatus(
+                              child: InOutCalls(
+                                child: RescuerMapPage(
+                                  latitude: latitude,
+                                  longitude: longitude,
+                                  victimUid: uid,
+                                ),
+                              ),
                             ),
                           ),
                           context,

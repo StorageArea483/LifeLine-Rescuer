@@ -19,16 +19,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadUserData();
+    });
   }
 
   Future<void> _loadUserData() async {
-    // Set loading to true
-    Future(() {
-      if (mounted) {
-        ref.read(profileLoadingProvider.notifier).state = true;
-      }
-    });
+    if (mounted) {
+      ref.read(profileLoadingProvider.notifier).state = true;
+    }
 
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -47,34 +46,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       if (docSnapshot.exists) {
         final userData = docSnapshot.data();
         if (mounted) {
-          Future(() {
-            ref.read(userDataProvider.notifier).state = userData;
-          });
-        }
-      } else {
-        // Create a basic user document if it doesn't exist
-        final basicData = {
-          'email': user.email ?? 'N/A',
-          'firstName': 'N/A',
-          'lastName': 'N/A',
-          'branchName': 'N/A',
-          'latitude': 0.0,
-          'longitude': 0.0,
-          'location': 'N/A',
-          'ngoName': 'N/A',
-          'phone': 'N/A',
-          'selectedService': 'N/A',
-        };
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set(basicData);
-
-        if (mounted) {
-          Future(() {
-            ref.read(userDataProvider.notifier).state = basicData;
-          });
+          ref.read(userDataProvider.notifier).state = userData;
         }
       }
     } catch (e) {
@@ -82,11 +54,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         pageMessage('Failed to load profile data', context, AppColors.error);
       }
     } finally {
-      Future(() {
-        if (mounted) {
-          ref.read(profileLoadingProvider.notifier).state = false;
-        }
-      });
+      if (mounted) {
+        ref.read(profileLoadingProvider.notifier).state = false;
+      }
     }
   }
 

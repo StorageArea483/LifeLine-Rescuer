@@ -14,6 +14,8 @@ import 'package:life_line_rescuer/utils/responsive_helper.dart';
 import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class RescuerChatScreen extends ConsumerStatefulWidget {
   final String victimId;
@@ -61,8 +63,8 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeChat();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initializeChat();
     });
   }
 
@@ -107,7 +109,14 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
             context,
             AppColors.error,
           );
-          pageNavigation(const InOutCalls(child: LandingPage()), context);
+          pageNavigation(
+            const InternetConnection(
+              child: RescuerOnlineStatus(
+                child: InOutCalls(child: LandingPage()),
+              ),
+            ),
+            context,
+          );
         }
         return;
       }
@@ -134,7 +143,12 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
           context,
           AppColors.error,
         );
-        pageNavigation(const InOutCalls(child: LandingPage()), context);
+        pageNavigation(
+          const InternetConnection(
+            child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+          ),
+          context,
+        );
       }
     }
   }
@@ -433,7 +447,11 @@ class _RescuerChatScreenState extends ConsumerState<RescuerChatScreen> {
             ),
             onPressed:
                 () => pageNavigation(
-                  const InOutCalls(child: RescuerContactPage()),
+                  const InternetConnection(
+                    child: RescuerOnlineStatus(
+                      child: InOutCalls(child: RescuerContactPage()),
+                    ),
+                  ),
                   context,
                 ),
           ),

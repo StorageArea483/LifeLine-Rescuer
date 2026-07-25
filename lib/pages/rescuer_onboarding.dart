@@ -10,7 +10,9 @@ import 'package:life_line_rescuer/widgets/global/in_out_calls.dart';
 import 'package:life_line_rescuer/widgets/global/page_loading.dart';
 import 'package:life_line_rescuer/widgets/global/page_message.dart';
 import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
 import 'package:life_line_rescuer/widgets/google_authentication.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
 
 class RescuerOnboarding extends ConsumerStatefulWidget {
   const RescuerOnboarding({super.key});
@@ -38,8 +40,8 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initSecondaryFirebase();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initSecondaryFirebase();
     });
   }
 
@@ -150,7 +152,12 @@ class _RescuerOnboardingState extends ConsumerState<RescuerOnboarding> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 

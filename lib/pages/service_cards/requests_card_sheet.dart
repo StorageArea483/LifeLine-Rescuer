@@ -14,6 +14,9 @@ import 'package:life_line_rescuer/widgets/global/page_navigation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' show Platform;
 
+import 'package:life_line_rescuer/widgets/global/rescuer_online_status.dart';
+import 'package:life_line_rescuer/widgets/internet_connection.dart';
+
 class RequestSheet extends ConsumerStatefulWidget {
   final int activeRequests;
   final List<String>? assignmentIds;
@@ -61,8 +64,8 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initSecondaryFirebase();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initSecondaryFirebase();
     });
   }
 
@@ -107,7 +110,12 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
         context,
         AppColors.error,
       );
-      pageNavigation(const InOutCalls(child: LandingPage()), context);
+      pageNavigation(
+        const InternetConnection(
+          child: RescuerOnlineStatus(child: InOutCalls(child: LandingPage())),
+        ),
+        context,
+      );
     }
   }
 
@@ -160,31 +168,61 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
       await _victimFirestore!.collection('users').doc(uid).set({
         'requestAccepted': newStatus,
       }, SetOptions(merge: true));
-      await ngoFirestore!.collection('requests').doc(uid).set({
-        'assigned': isAssigned,
-      }, SetOptions(merge: true));
 
       if (isAssigned != null && isAssigned == false) {
         final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
         if (currentUserUid != null) {
-          final rescuerFirestore = FirebaseFirestore.instance;
-          final rescuerDocRef = rescuerFirestore
+          final rescuerDocRef = FirebaseFirestore.instance
               .collection('users')
               .doc(currentUserUid);
           final rescuerDoc = await rescuerDocRef.get();
 
           if (rescuerDoc.exists) {
-            final currentRequests = rescuerDoc.data()?['requests'] ?? 0;
+            final rescuerData = rescuerDoc.data();
+            final currentRequests = rescuerData?['requests'] ?? 0;
+            final ngoDocId = rescuerData?['ngoId'] as String?;
+
+            final rescuerUpdates = <String, dynamic>{
+              'assigned.$uid': FieldValue.delete(),
+            };
             if (currentRequests != 0) {
-              await rescuerDocRef.update({
-                'requests': FieldValue.increment(-1),
-              });
+              rescuerUpdates['requests'] = FieldValue.increment(-1);
+            }
+            await rescuerDocRef.update(rescuerUpdates);
+
+            if (ngoDocId != null && ngoFirestore != null) {
+              // Mirror the same removal on the NGO side's rescuer-requests doc
+              final ngoRescuerDocRef = ngoFirestore!
+                  .collection('ngo-info-database')
+                  .doc(ngoDocId)
+                  .collection('rescuer-requests')
+                  .doc(currentUserUid);
+              final ngoRescuerDoc = await ngoRescuerDocRef.get();
+
+              if (ngoRescuerDoc.exists) {
+                final ngoUpdates = <String, dynamic>{
+                  'assigned.$uid': FieldValue.delete(),
+                };
+                final ngoCurrentRequests =
+                    ngoRescuerDoc.data()?['requests'] ?? 0;
+                if (ngoCurrentRequests != 0) {
+                  ngoUpdates['requests'] = FieldValue.increment(-1);
+                }
+                await ngoRescuerDocRef.update(ngoUpdates);
+              }
+
+              final requestDocRef = ngoFirestore!
+                  .collection('requests')
+                  .doc(uid);
+              final requestDoc = await requestDocRef.get();
+              if (requestDoc.exists) {
+                await requestDocRef.update({'assigned': false});
+              }
             }
           }
         }
       }
 
-      // Refresh the pending list after update
       await fetchPendingRequests();
     } catch (e) {
       pageMessage(
@@ -212,7 +250,14 @@ class _RequestSheetState extends ConsumerState<RequestSheet> {
             color: AppColors.textSecondary,
           ),
           onPressed: () {
-            pageNavigation(const InOutCalls(child: LandingPage()), context);
+            pageNavigation(
+              const InternetConnection(
+                child: RescuerOnlineStatus(
+                  child: InOutCalls(child: LandingPage()),
+                ),
+              ),
+              context,
+            );
           },
         ),
       ),
