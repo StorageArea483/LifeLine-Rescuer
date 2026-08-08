@@ -34,7 +34,8 @@ migrate_working_dir/
 /coverage/
 ios/Pods/
 android/.gradle/
-/lib/config
+lib/config
+lib/services
 
 # Symbolication related
 app.*.symbols
