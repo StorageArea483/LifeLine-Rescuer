@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
-import 'package:life_line_rescuer/providers/call_state_provider.dart';
 
 class CallService {
   static final JitsiMeet _jitsiMeet = JitsiMeet();
@@ -11,12 +9,11 @@ class CallService {
     return '${ids[0]}_${ids[1]}';
   }
 
-  static Future<void> initiateCall({
+  static Future<String> initiateCall({
     required String callerId,
     required String receiverId,
     required String callerName,
     required String callerPhotoUrl,
-    required WidgetRef ref,
     bool audioOnly = false,
   }) async {
     final callId = generateCallId(callerId, receiverId);
@@ -32,7 +29,7 @@ class CallService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    ref.read(currentCallIdProvider.notifier).state = callId;
+    return callId;
   }
 
   static Future<void> acceptCall({
@@ -85,9 +82,16 @@ class CallService {
       serverURL: 'https://meet.jit.si',
       room: roomName,
       configOverrides: {
+        'disableDeepLinking': true,
+        "prejoinPageEnabled": false,
         'startWithAudioMuted': false,
         'startWithVideoMuted': audioOnly,
         'subject': 'LifeLine Call',
+        'enableLobbyChat': false,
+        'enableInsecureRoomNameWarning': false,
+        'enableInviteFunctions': false,
+        'hideConferenceTimer': false,
+        'toolbarButtons': ['microphone', 'camera', 'hangup'],
       },
       featureFlags: {
         FeatureFlags.welcomePageEnabled: false,
@@ -97,6 +101,10 @@ class CallService {
         FeatureFlags.inviteEnabled: false,
         FeatureFlags.resolution: FeatureFlagVideoResolutions.resolution720p,
         FeatureFlags.audioOnlyButtonEnabled: true,
+        FeatureFlags.lobbyModeEnabled: false,
+        FeatureFlags.chatEnabled: false,
+        FeatureFlags.raiseHandEnabled: false,
+        FeatureFlags.conferenceTimerEnabled: true,
       },
       userInfo: JitsiMeetUserInfo(displayName: displayName, avatar: avatarUrl),
     );

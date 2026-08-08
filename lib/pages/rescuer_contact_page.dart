@@ -535,14 +535,16 @@ class _RescuerContactPageState extends ConsumerState<RescuerContactPage> {
             final rescuerId = FirebaseAuth.instance.currentUser?.uid;
             if (rescuerId == null) return;
 
-            await CallService.initiateCall(
+            final callId = await CallService.initiateCall(
               callerId: rescuerId,
               receiverId: victim['id'] ?? '',
               callerName: 'Rescuer',
               callerPhotoUrl: FirebaseAuth.instance.currentUser?.photoURL ?? '',
-              ref: ref,
               audioOnly: false,
             );
+
+            if (!mounted) return;
+            ref.read(currentCallIdProvider.notifier).state = callId;
           },
         ),
       ),
