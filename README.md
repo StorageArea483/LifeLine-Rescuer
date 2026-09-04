@@ -468,8 +468,6 @@ official emergency services or professional rescue organizations.
 
 ------------------------------------------------------------------------
 
-# 👨‍💻 Developers
-
 **Daniyal Mushtaq**\
 BS Computer Science --- COMSATS University Islamabad, Abbottabad Campus
 
